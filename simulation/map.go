@@ -1,11 +1,13 @@
 package simulation
 
+import "math"
+
 type Position struct {
-	x int
-	y int
+	x float64
+	y float64
 }
 
-func NewPosition(x int, y int) Position {
+func NewPosition(x float64, y float64) Position {
 	return Position{x: x, y: y}
 }
 
@@ -19,12 +21,20 @@ func NewVertex(pos Position, links []int) Vertex {
 }
 
 type Link struct {
-	next int
+	from     int
+	to       int
+	distance float64
 	// Link Properties here
 }
 
-func NewLink(next int) Link {
-	return Link{next: next}
+func NewLink(from int, to int, distance float64) Link {
+	return Link{from: from, to: to, distance: distance}
+}
+
+func CalculateDistance(p1 Position, p2 Position) float64 {
+	change_x := p1.x - p2.x
+	change_y := p1.y - p2.y
+	return math.Sqrt(math.Pow(change_x, 2) + math.Pow(change_y, 2))
 }
 
 type Map struct {
