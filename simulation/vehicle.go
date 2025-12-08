@@ -1,7 +1,11 @@
 package simulation
 
-type VehiclePosition struct { // Vehicle is either on a link or on a vertex
-	link_id  int
+import (
+	"math"
+)
+
+type VehiclePosition struct {
+	lane_id  int
 	progress float64
 
 	m *Map
@@ -12,9 +16,9 @@ type XYCoords struct {
 	y float64
 }
 
-func NewVehicleVertexPos(m *Map, vertex int) VehiclePosition {
+func NewVehicleNodePos(m *Map, node int) VehiclePosition {
 	return VehiclePosition{
-		link_id:  m.vertices[vertex].links_out[0],
+		lane_id:  m.nodes[node].lanes_out[0],
 		progress: 0,
 		m:        m,
 	}
@@ -24,8 +28,8 @@ type Vehicle struct {
 	id          int
 	prop        VehicleProp
 	pos         VehiclePosition
-	destination int // Vertex id
-	origin      int // Vertex id
+	destination int // Node id
+	origin      int // Node id
 	speed       float64
 	acc         float64
 	lastFetch   int64
@@ -47,7 +51,7 @@ func NewVehicle(id int, prop VehicleProp, destination int, origin int, m *Map) *
 	return &Vehicle{
 		id:          id,
 		prop:        prop,
-		pos:         NewVehicleVertexPos(m, origin),
+		pos:         NewVehicleNodePos(m, origin),
 		destination: destination,
 		origin:      origin,
 		speed:       0,
@@ -56,9 +60,9 @@ func NewVehicle(id int, prop VehicleProp, destination int, origin int, m *Map) *
 	}
 }
 
-func (a *Vehicle) ChangePosition(link_id int, progress float64) {
+func (a *Vehicle) ChangePosition(lane_id int, progress float64) {
 	a.pos = VehiclePosition{
-		link_id:  link_id,
+		lane_id:  lane_id,
 		progress: progress,
 
 		m: a.pos.m,
@@ -67,18 +71,15 @@ func (a *Vehicle) ChangePosition(link_id int, progress float64) {
 
 func (a *Vehicle) GetPosXY() XYCoords { //Get position for Vehicle in XY coordinates
 	m := a.pos.m
-	link_id := a.pos.link_id
+	lane_id := a.pos.lane_id
 	progress := a.pos.progress
 
-	vertex_id_to := m.links[link_id].to
-	vertex_id_from := m.links[link_id].from
+	to_coords := XYCoords{x: m.lanes[lane_id].end_pos.x, y: m.lanes[lane_id].end_pos.y}
+	from_coords := XYCoords{x: m.lanes[lane_id].start_pos.x, y: m.lanes[lane_id].start_pos.y}
 
-	vertex_to_coords := XYCoords{x: m.vertices[vertex_id_to].pos.x, y: m.vertices[vertex_id_to].pos.y}
-	vertex_from_coords := XYCoords{x: m.vertices[vertex_id_from].pos.x, y: m.vertices[vertex_id_from].pos.y}
-
-	diff_x := vertex_to_coords.x - vertex_from_coords.x
-	diff_y := vertex_to_coords.y - vertex_from_coords.y
-	return XYCoords{x: vertex_from_coords.x + (diff_x * progress), y: vertex_from_coords.y + (diff_y * progress)}
+	diff_x := to_coords.x - from_coords.x
+	diff_y := to_coords.y - from_coords.y
+	return XYCoords{x: from_coords.x + (diff_x * progress), y: from_coords.y + (diff_y * progress)}
 }
 
 type VehicleFetchResult struct {
@@ -89,17 +90,19 @@ type VehicleFetchResult struct {
 }
 
 func (a *Vehicle) StartVehicleSim(time int64, vehicle_channel chan VehicleFetchResult) {
+	if a == nil {
+		return
+	}
 	//Route vehicle to destination using pathfinding algorithm initially
 	curr_pos := a.pos
 	mapsim := a.pos.m
 
-	curr_link := mapsim.links[curr_pos.link_id]
-	curr_vertex := mapsim.vertices[curr_link.from]
-	for _, link_id := range curr_vertex.links_out {
-		link := mapsim.links[link_id]
-		if link.to == a.destination {
-			a.ChangePosition(link_id, 0)
-			a.acc = 0.01
+	curr_lane := mapsim.lanes[curr_pos.lane_id]
+	curr_node := mapsim.nodes[curr_lane.from]
+	for _, lane_id := range curr_node.lanes_out {
+		lane := mapsim.lanes[lane_id]
+		if lane.to == a.destination {
+			a.ChangePosition(lane_id, 0)
 		}
 	}
 
@@ -110,19 +113,49 @@ func (a *Vehicle) StartVehicleSim(time int64, vehicle_channel chan VehicleFetchR
 	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch}
 }
 
+func (a *Vehicle) FindNextLanePosition() VehiclePosition {
+	mapsim := a.pos.m
+	intersection_node_id := mapsim.lanes[a.pos.lane_id].to
+	lanes_out := mapsim.nodes[intersection_node_id].lanes_out
+	if len(lanes_out) <= 0 {
+		return VehiclePosition{lane_id: a.pos.lane_id, progress: 1, m: a.pos.m}
+	}
+
+	//TODO: Run path finding algorithm here
+	new_lane_id := mapsim.nodes[intersection_node_id].lanes_out[0] //Temporary
+	return VehiclePosition{lane_id: new_lane_id, progress: 0, m: a.pos.m}
+}
+
 func (a *Vehicle) CalculateNewPos(old_time int64, new_time int64, pos VehiclePosition) VehiclePosition {
 	time_delta := new_time - old_time
 	mapsim := pos.m
-	total_link_distance := mapsim.links[pos.link_id].distance
-	current_distance := pos.progress * total_link_distance
+	if pos.progress == 1 {
+		pos = a.FindNextLanePosition()
+	}
+	total_lane_distance := mapsim.lanes[pos.lane_id].distance
+	current_distance := pos.progress * total_lane_distance
 
-	distance_travelled := float64(time_delta) / 100 //Constant velocity of 0.1m/s
-	new_progress := min((distance_travelled+current_distance)/total_link_distance, 1)
-	return VehiclePosition{link_id: pos.link_id, progress: float64(new_progress), m: pos.m}
+	//Linear model for acceleration
+	new_speed := a.speed + (float64(time_delta) * a.acc)
+	distance_travelled := (float64(time_delta) * a.speed) + (0.5 * a.acc * math.Pow(float64(time_delta), 2))
+
+	new_acc := min(a.prop.max_acc, 0.0005) //TODO: Change this to be dynamic
+
+	a.speed = new_speed
+	a.acc = new_acc
+
+	new_progress := min((distance_travelled+current_distance)/total_lane_distance, 1)
+	return VehiclePosition{lane_id: pos.lane_id, progress: float64(new_progress), m: pos.m}
 }
 
 func (a *Vehicle) FetchVehicleSim(time int64, vehicle_channel chan VehicleFetchResult) {
+	if a == nil {
+		return
+	}
 	curr_pos := a.pos
+	if a.hasReachedDestination(curr_pos) {
+		//TODO: Add Deletion/Recycling functionality
+	}
 
 	a.pos = a.CalculateNewPos(a.lastFetch, time, curr_pos)
 
@@ -131,4 +164,12 @@ func (a *Vehicle) FetchVehicleSim(time int64, vehicle_channel chan VehicleFetchR
 	coords := a.GetPosXY()
 	a.lastFetch = time
 	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch}
+}
+
+func (a *Vehicle) hasReachedDestination(pos VehiclePosition) bool {
+	m := pos.m
+	lane_id := pos.lane_id
+	progress := pos.progress
+	dest := a.destination
+	return (progress == 1) && (m.lanes[lane_id].to == dest)
 }

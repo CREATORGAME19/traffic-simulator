@@ -1,6 +1,8 @@
 package simulation
 
-import "math"
+import (
+	"math"
+)
 
 type Position struct {
 	x float64
@@ -11,24 +13,30 @@ func NewPosition(x float64, y float64) Position {
 	return Position{x: x, y: y}
 }
 
-type Vertex struct {
+type Node struct { //TODO: Change this to distinguish between intersection node and spawn/sink node
+	id        int
 	pos       Position
-	links_out []int
+	lanes_out []int
+	lanes_in  []int
 }
 
-func NewVertex(pos Position, links []int) Vertex {
-	return Vertex{pos: pos, links_out: links}
+func NewNode(id int, pos Position, lanes_out []int, lanes_in []int) Node {
+	return Node{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in}
 }
 
-type Link struct {
-	from     int
-	to       int
-	distance float64
-	// Link Properties here
+type Lane struct {
+	id        int
+	start_pos Position
+	end_pos   Position
+	from      int //Node id
+	to        int //Node id
+	distance  float64
+	vehicles  []*Vehicle //TODO: Implement vehicle lane queuing (use linked list approach)
+	// more Lane Properties here (like speed limit)
 }
 
-func NewLink(from int, to int, distance float64) Link {
-	return Link{from: from, to: to, distance: distance}
+func NewLane(id int, start_pos Position, end_pos Position, from int, to int) Lane {
+	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicles: []*Vehicle{}}
 }
 
 func CalculateDistance(p1 Position, p2 Position) float64 {
@@ -38,21 +46,21 @@ func CalculateDistance(p1 Position, p2 Position) float64 {
 }
 
 type Map struct {
-	vertices []Vertex
-	links    []Link
+	nodes []Node
+	lanes []Lane
 }
 
-func InitialiseMap(v []Vertex, l []Link) *Map {
+func InitialiseMap(v []Node, l []Lane) *Map {
 	return &Map{
-		vertices: v,
-		links:    l,
+		nodes: v,
+		lanes: l,
 	}
 }
 
-func (m *Map) AddVertex(v Vertex) {
-	m.vertices = append(m.vertices, v)
+func (m *Map) AddNode(v Node) {
+	m.nodes = append(m.nodes, v)
 }
 
-func (m *Map) AddLink(l Link) {
-	m.links = append(m.links, l)
+func (m *Map) AddLane(l Lane) {
+	m.lanes = append(m.lanes, l)
 }

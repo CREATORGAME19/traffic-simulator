@@ -8,7 +8,7 @@ func CreateVehicles(m *Map) []*Vehicle {
 				max_speed: 0.5,
 				max_acc:   0.1,
 			},
-			1,
+			2,
 			0,
 			m,
 		),
