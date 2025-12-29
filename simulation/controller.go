@@ -2,7 +2,10 @@ package simulation
 
 import (
 	"fmt"
+	"sync"
 )
+
+const MAX_VEHICLES = 1
 
 type VehicleLocation struct {
 	x    float64
@@ -11,7 +14,9 @@ type VehicleLocation struct {
 }
 
 func RunController() {
-	//go runFrontend()
+	var wg sync.WaitGroup
+	frontend_chan := make(chan []VehicleLocation)
+	go runFrontend(&wg, frontend_chan)
 
 	// Initialize Map
 	nodes := []Node{
@@ -56,8 +61,8 @@ func RunController() {
 
 	// Initialize Vehicles
 	vehicles := CreateVehicles(mapsim)
-	vehicle_locations := make([]VehicleLocation, len(vehicles))
-	vehicle_channel := make(chan VehicleFetchResult, len(vehicles)) //Set number of vehicles as the size of buffer
+	vehicle_locations := make([]VehicleLocation, MAX_VEHICLES)
+	vehicle_channel := make(chan VehicleFetchResult, MAX_VEHICLES) //Set number of vehicles as the size of buffer
 
 	time := 0
 
@@ -68,6 +73,8 @@ func RunController() {
 		fetchresult := <-vehicle_channel
 		vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time}
 	}
+	wg.Add(1)
+	frontend_chan <- vehicle_locations
 	fmt.Println("Vehicles Start: ", vehicles)
 	for i := 0; i < 400; i++ {
 		time++
@@ -75,12 +82,14 @@ func RunController() {
 		for v := 0; v < len(vehicles); v++ {
 			go vehicles[v].FetchVehicleSim(int64(time), vehicle_channel)
 		}
+		wg.Wait()
 		for v := 0; v < len(vehicles); v++ {
 			fetchresult := <-vehicle_channel
 			vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time}
 		}
-		fmt.Println("Vehicles at time", i, ":", vehicle_locations[0])
+		wg.Add(1)
+		frontend_chan <- vehicle_locations
 	}
 
-	//select {} //Temporary
+	select {} //Temporary
 }
