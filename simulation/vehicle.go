@@ -5,22 +5,20 @@ import (
 )
 
 type VehiclePosition struct {
-	lane_id  int
-	progress float64
+	lane_id    int
+	lane_queue *LaneQueue
+	progress   float64
 
 	m *Map
 }
 
-type XYCoords struct {
-	x float64
-	y float64
-}
-
 func NewVehicleNodePos(m *Map, node int) VehiclePosition {
+	lane_id := m.nodes[node].lanes_out[0] //TODO: Change this to be more dynamic
 	return VehiclePosition{
-		lane_id:  m.nodes[node].lanes_out[0],
-		progress: 0,
-		m:        m,
+		lane_id:    lane_id,
+		lane_queue: NewLaneQueue(nil, nil), //Vehicle is initialised later in NewVehicle
+		progress:   0,
+		m:          m,
 	}
 }
 
@@ -36,19 +34,21 @@ type Vehicle struct {
 }
 
 type VehicleProp struct {
-	max_speed float64
-	max_acc   float64
+	max_speed        float64
+	max_acc          float64
+	minimum_gap_size float64
 }
 
-func NewVehicleProp(max_speed float64, max_acc float64) VehicleProp {
+func NewVehicleProp(max_speed float64, max_acc float64, minimum_gap_size float64) VehicleProp {
 	return VehicleProp{
-		max_speed: max_speed,
-		max_acc:   max_acc,
+		max_speed:        max_speed,
+		max_acc:          max_acc,
+		minimum_gap_size: minimum_gap_size,
 	}
 }
 
 func NewVehicle(id int, prop VehicleProp, destination int, origin int, m *Map) *Vehicle {
-	return &Vehicle{
+	res := Vehicle{
 		id:          id,
 		prop:        prop,
 		pos:         NewVehicleNodePos(m, origin),
@@ -58,6 +58,8 @@ func NewVehicle(id int, prop VehicleProp, destination int, origin int, m *Map) *
 		acc:         0,
 		lastFetch:   -1,
 	}
+	res.pos.lane_queue.current_vehicle = &res //Assign previously unassigned Vehicle in NewVehicleNodePos
+	return &res
 }
 
 func (a *Vehicle) ChangePosition(lane_id int, progress float64) {
@@ -69,17 +71,21 @@ func (a *Vehicle) ChangePosition(lane_id int, progress float64) {
 	}
 }
 
-func (a *Vehicle) GetPosXY() XYCoords { //Get position for Vehicle in XY coordinates
-	m := a.pos.m
-	lane_id := a.pos.lane_id
-	progress := a.pos.progress
+func (a *Vehicle) GetPosXY() Position { //Get position for Vehicle in XY coordinates
+	return ConvertVehiclePosToXY(a.pos)
+}
 
-	to_coords := XYCoords{x: m.lanes[lane_id].end_pos.x, y: m.lanes[lane_id].end_pos.y}
-	from_coords := XYCoords{x: m.lanes[lane_id].start_pos.x, y: m.lanes[lane_id].start_pos.y}
+func ConvertVehiclePosToXY(vehicle_pos VehiclePosition) Position {
+	m := vehicle_pos.m
+	lane_id := vehicle_pos.lane_id
+	progress := vehicle_pos.progress
+
+	to_coords := Position{x: m.lanes[lane_id].end_pos.x, y: m.lanes[lane_id].end_pos.y}
+	from_coords := Position{x: m.lanes[lane_id].start_pos.x, y: m.lanes[lane_id].start_pos.y}
 
 	diff_x := to_coords.x - from_coords.x
 	diff_y := to_coords.y - from_coords.y
-	return XYCoords{x: from_coords.x + (diff_x * progress), y: from_coords.y + (diff_y * progress)}
+	return Position{x: from_coords.x + (diff_x * progress), y: from_coords.y + (diff_y * progress)}
 }
 
 type VehicleFetchResult struct {
@@ -118,19 +124,29 @@ func (a *Vehicle) FindNextLanePosition() VehiclePosition {
 	intersection_node_id := mapsim.lanes[a.pos.lane_id].to
 	lanes_out := mapsim.nodes[intersection_node_id].lanes_out
 	if len(lanes_out) <= 0 {
-		return VehiclePosition{lane_id: a.pos.lane_id, progress: 1, m: a.pos.m}
+		return VehiclePosition{lane_id: a.pos.lane_id, progress: 1, m: a.pos.m, lane_queue: a.pos.lane_queue}
+		//This is reached if vehicle hits a deadend!
 	}
 
 	//TODO: Run path finding algorithm here
 	new_lane_id := mapsim.nodes[intersection_node_id].lanes_out[0] //Temporary
-	return VehiclePosition{lane_id: new_lane_id, progress: 0, m: a.pos.m}
+	return VehiclePosition{lane_id: new_lane_id, progress: 0, m: a.pos.m, lane_queue: a.pos.lane_queue}
 }
 
 func (a *Vehicle) CalculateNewPos(old_time int64, new_time int64, pos VehiclePosition) VehiclePosition {
 	time_delta := new_time - old_time
 	mapsim := pos.m
 	if pos.progress == 1 {
-		pos = a.FindNextLanePosition()
+		desired_pos := a.FindNextLanePosition()
+		if a.pos.lane_queue.next_vehicle == nil && a.isStartLaneFree(desired_pos) {
+			a.SwitchToStartLane(desired_pos) //If lane is free to enter, then proceed to the requested position
+			a.PopPreviousFromQueue()
+			pos = desired_pos
+		} else { //Otherwise wait
+			a.speed = 0
+			a.acc = 0
+			return pos
+		}
 	}
 	total_lane_distance := mapsim.lanes[pos.lane_id].distance
 	current_distance := pos.progress * total_lane_distance
@@ -145,7 +161,7 @@ func (a *Vehicle) CalculateNewPos(old_time int64, new_time int64, pos VehiclePos
 	a.acc = new_acc
 
 	new_progress := min((distance_travelled+current_distance)/total_lane_distance, 1)
-	return VehiclePosition{lane_id: pos.lane_id, progress: float64(new_progress), m: pos.m}
+	return VehiclePosition{lane_id: pos.lane_id, progress: float64(new_progress), m: pos.m, lane_queue: pos.lane_queue}
 }
 
 func (a *Vehicle) FetchVehicleSim(time int64, vehicle_channel chan VehicleFetchResult) {
@@ -153,10 +169,22 @@ func (a *Vehicle) FetchVehicleSim(time int64, vehicle_channel chan VehicleFetchR
 		return
 	}
 	curr_pos := a.pos
-	if a.hasReachedDestination(curr_pos) {
+	if a.hasReachedDestination() {
 		//TODO: Add Deletion/Recycling functionality
 	}
 
+	lane_queue := curr_pos.lane_queue
+	if lane_queue == nil {
+		println("Error: lane_queue stuck!")
+		return
+	}
+	if lane_queue.current_lane == nil {
+		if a.isStartLaneFree(a.pos) {
+			a.SwitchToStartLane(a.pos)
+		} else {
+			return
+		}
+	}
 	a.pos = a.CalculateNewPos(a.lastFetch, time, curr_pos)
 
 	//Finish for this turn
@@ -166,10 +194,38 @@ func (a *Vehicle) FetchVehicleSim(time int64, vehicle_channel chan VehicleFetchR
 	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch}
 }
 
-func (a *Vehicle) hasReachedDestination(pos VehiclePosition) bool {
+func (a *Vehicle) SwitchToStartLane(new_pos VehiclePosition) { //Switches LaneQueue to new lane once isStartLaneFree is checked
+	lane_queue := a.pos.lane_queue
+	lane := &new_pos.m.lanes[new_pos.lane_id]
+	lane_queue.current_lane = lane
+	lane_queue.next_vehicle = lane.lane_queue
+	lane.lane_queue = lane_queue
+	if lane_queue.next_vehicle == nil {
+		return
+	}
+	lane_queue.next_vehicle.previous_vehicle = lane_queue
+}
+
+func (a *Vehicle) PopPreviousFromQueue() {
+	if a.pos.lane_queue.previous_vehicle == nil {
+		return
+	}
+	lane_queue := a.pos.lane_queue
+	lane_queue.previous_vehicle.next_vehicle = nil
+	lane_queue.previous_vehicle = nil
+}
+
+func (a *Vehicle) hasReachedDestination() bool {
+	pos := a.pos
 	m := pos.m
 	lane_id := pos.lane_id
 	progress := pos.progress
 	dest := a.destination
 	return (progress == 1) && (m.lanes[lane_id].to == dest)
+}
+
+func (a *Vehicle) isStartLaneFree(desired_pos VehiclePosition) bool {
+	min_gap_size := a.prop.minimum_gap_size
+	lane := desired_pos.m.lanes[desired_pos.lane_id]
+	return (lane.lane_queue == nil) || (CalculateDistance(ConvertVehiclePosToXY(desired_pos), lane.lane_queue.current_vehicle.GetPosXY()) >= min_gap_size)
 }

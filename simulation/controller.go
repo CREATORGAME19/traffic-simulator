@@ -18,6 +18,12 @@ func RunController() {
 	frontend_chan := make(chan []VehicleLocation)
 	go runFrontend(&wg, frontend_chan)
 
+	err := open_url("http://localhost:"+PORT)
+	if err != nil {
+		fmt.Println("Error opening browser!")
+		return
+	}
+
 	// Initialize Map
 	nodes := []Node{
 		NewNode(

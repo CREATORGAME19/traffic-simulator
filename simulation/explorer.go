@@ -8,6 +8,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const PORT = "8080"
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -40,5 +42,5 @@ func runFrontend(wg *sync.WaitGroup, channel chan []VehicleLocation) {
 		http.ServeFile(w, r, "templates/index.html")
 	})
 
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":"+PORT, nil)
 }

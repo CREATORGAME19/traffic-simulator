@@ -31,12 +31,12 @@ type Lane struct {
 	from      int //Node id
 	to        int //Node id
 	distance  float64
-	vehicles  []*Vehicle //TODO: Implement vehicle lane queuing (use linked list approach)
+	lane_queue  *LaneQueue 
 	// more Lane Properties here (like speed limit)
 }
 
 func NewLane(id int, start_pos Position, end_pos Position, from int, to int) Lane {
-	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicles: []*Vehicle{}}
+	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), lane_queue: nil}
 }
 
 func CalculateDistance(p1 Position, p2 Position) float64 {
@@ -63,4 +63,20 @@ func (m *Map) AddNode(v Node) {
 
 func (m *Map) AddLane(l Lane) {
 	m.lanes = append(m.lanes, l)
+}
+
+type LaneQueue struct {
+	current_vehicle *Vehicle
+	current_lane *Lane
+	next_vehicle *LaneQueue
+	previous_vehicle *LaneQueue
+}
+
+func NewLaneQueue(current_vehicle *Vehicle, current_lane *Lane) *LaneQueue {
+	return &LaneQueue{
+		current_vehicle: current_vehicle,
+		current_lane: current_lane,
+		next_vehicle: nil,
+		previous_vehicle: nil,
+	}
 }

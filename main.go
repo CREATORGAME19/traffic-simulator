@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	fmt.Printf("Start")
+	fmt.Println("Start")
 	RunController()
 }
