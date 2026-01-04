@@ -25,24 +25,27 @@ func RunController() {
 	}
 
 	// Initialize Map
-	nodes := []Node{
-		NewNode(
+	nodes := []RoadNode{
+		NewRoadNode(
 			0,
 			NewPosition(0, 0),
 			[]int{0},
 			[]int{},
+			SpawnerRoadNode,
 		),
-		NewNode(
+		NewRoadNode(
 			1,
 			NewPosition(1, 1),
 			[]int{1},
 			[]int{0},
+			IntersectionRoadNode,
 		),
-		NewNode(
+		NewRoadNode(
 			2,
 			NewPosition(2, 2),
 			[]int{},
 			[]int{1},
+			SinkRoadNode,
 		),
 	}
 	lanes := []Lane{

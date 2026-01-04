@@ -13,15 +13,28 @@ func NewPosition(x float64, y float64) Position {
 	return Position{x: x, y: y}
 }
 
-type Node struct { //TODO: Change this to distinguish between intersection node and spawn/sink node
+type RoadNodeType string
+const (
+	IntersectionRoadNode RoadNodeType = "intersection"
+	SpawnerRoadNode RoadNodeType = "spawner"
+	SinkRoadNode RoadNodeType = "sink"
+)
+
+type RoadNodeTypeProperties struct {
+	//TODO
+}
+
+type RoadNode struct {
 	id        int
 	pos       Position
 	lanes_out []int
 	lanes_in  []int
+	node_type RoadNodeType
+	node_prop *RoadNodeTypeProperties //TODO: Add way of defining per-node properties
 }
 
-func NewNode(id int, pos Position, lanes_out []int, lanes_in []int) Node {
-	return Node{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in}
+func NewRoadNode(id int, pos Position, lanes_out []int, lanes_in []int, node_type RoadNodeType) RoadNode {
+	return RoadNode{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in, node_type: node_type}
 }
 
 type Lane struct {
@@ -46,18 +59,18 @@ func CalculateDistance(p1 Position, p2 Position) float64 {
 }
 
 type Map struct {
-	nodes []Node
+	nodes []RoadNode
 	lanes []Lane
 }
 
-func InitialiseMap(v []Node, l []Lane) *Map {
+func InitialiseMap(v []RoadNode, l []Lane) *Map {
 	return &Map{
 		nodes: v,
 		lanes: l,
 	}
 }
 
-func (m *Map) AddNode(v Node) {
+func (m *Map) AddNode(v RoadNode) {
 	m.nodes = append(m.nodes, v)
 }
 
