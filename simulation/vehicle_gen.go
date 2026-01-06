@@ -1,7 +1,7 @@
 package simulation
 
 func CreateVehicles(m *Map) []*Vehicle {
-	agents := []*Vehicle{
+	vehicles := []*Vehicle{
 		NewVehicle(
 			0,
 			VehicleProp{
@@ -13,5 +13,5 @@ func CreateVehicles(m *Map) []*Vehicle {
 			m,
 		),
 	}
-	return agents
+	return vehicles
 }

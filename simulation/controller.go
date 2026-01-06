@@ -18,7 +18,7 @@ func RunController() {
 	frontend_chan := make(chan []VehicleLocation)
 	go runFrontend(&wg, frontend_chan)
 
-	err := open_url("http://localhost:"+PORT)
+	err := open_url("http://localhost:" + PORT)
 	if err != nil {
 		fmt.Println("Error opening browser!")
 		return
@@ -74,30 +74,21 @@ func RunController() {
 	vehicle_channel := make(chan VehicleFetchResult, MAX_VEHICLES) //Set number of vehicles as the size of buffer
 
 	time := 0
-
-	for v := 0; v < len(vehicles); v++ {
-		go vehicles[v].StartVehicleSim(int64(time), vehicle_channel)
-	}
-	for v := 0; v < len(vehicles); v++ {
-		fetchresult := <-vehicle_channel
-		vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time}
-	}
-	wg.Add(1)
-	frontend_chan <- vehicle_locations
 	fmt.Println("Vehicles Start: ", vehicles)
-	for i := 0; i < 400; i++ {
-		time++
-
+	for i := 0; i < 400; i++ { //Temporary variable i
 		for v := 0; v < len(vehicles); v++ {
 			go vehicles[v].FetchVehicleSim(int64(time), vehicle_channel)
 		}
 		wg.Wait()
 		for v := 0; v < len(vehicles); v++ {
-			fetchresult := <-vehicle_channel
-			vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time}
+			if vehicles[v] != nil {
+				fetchresult := <-vehicle_channel 
+				vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time} //TODO: Change this to send individual vehicles rather than grouping them.
+			}
 		}
 		wg.Add(1)
 		frontend_chan <- vehicle_locations
+		time++
 	}
 
 	select {} //Temporary
