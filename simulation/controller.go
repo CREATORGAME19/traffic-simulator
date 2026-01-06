@@ -35,14 +35,14 @@ func RunController() {
 		),
 		NewRoadNode(
 			1,
-			NewPosition(1, 1),
+			NewPosition(10, 10),
 			[]int{1},
 			[]int{0},
 			IntersectionRoadNode,
 		),
 		NewRoadNode(
 			2,
-			NewPosition(2, 2),
+			NewPosition(20, 20),
 			[]int{},
 			[]int{1},
 			SinkRoadNode,
@@ -52,14 +52,14 @@ func RunController() {
 		NewLane(
 			0,
 			NewPosition(0, 0),
-			NewPosition(1, 1),
+			NewPosition(10, 10),
 			0,
 			1,
 		),
 		NewLane(
 			1,
-			NewPosition(1, 1),
-			NewPosition(2, 2),
+			NewPosition(10, 10),
+			NewPosition(20, 20),
 			1,
 			2,
 		),
@@ -75,14 +75,14 @@ func RunController() {
 
 	time := 0
 	fmt.Println("Vehicles Start: ", vehicles)
-	for i := 0; i < 400; i++ { //Temporary variable i
+	for i := 0; i < 50; i++ { //Temporary variable i
 		for v := 0; v < len(vehicles); v++ {
 			go vehicles[v].FetchVehicleSim(int64(time), vehicle_channel)
 		}
 		wg.Wait()
 		for v := 0; v < len(vehicles); v++ {
 			if vehicles[v] != nil {
-				fetchresult := <-vehicle_channel 
+				fetchresult := <-vehicle_channel
 				vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time} //TODO: Change this to send individual vehicles rather than grouping them.
 			}
 		}

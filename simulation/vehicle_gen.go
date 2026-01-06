@@ -5,8 +5,9 @@ func CreateVehicles(m *Map) []*Vehicle {
 		NewVehicle(
 			0,
 			VehicleProp{
-				max_speed: 0.5,
-				max_acc:   0.1,
+				max_speed:        0.5,
+				max_acc:          1,
+				minimum_gap_size: 3,
 			},
 			2,
 			0,

@@ -122,8 +122,7 @@ func (a *Vehicle) GetCurrentLane() *Lane {
 
 func (a *Vehicle) CalculateNewPos(old_time int64, new_time int64, pos VehiclePosition) VehiclePosition {
 	time_delta := new_time - old_time
-	mapsim := pos.m
-	if pos.progress == 1 {
+	if pos.progress == 1 { 
 		desired_pos := a.FindNextLanePosition()
 		curr_lane := a.GetCurrentLane()
 		if curr_lane.FindNextVehicleAhead(a) == nil && a.isLaneFreeAtPos(desired_pos) {
@@ -135,20 +134,42 @@ func (a *Vehicle) CalculateNewPos(old_time int64, new_time int64, pos VehiclePos
 			return pos
 		}
 	}
-	total_lane_distance := mapsim.lanes[pos.lane_id].distance
+	curr_lane := a.GetCurrentLane()
+	total_lane_distance := curr_lane.distance
 	current_distance := pos.progress * total_lane_distance
 
-	//Linear model for acceleration
-	new_speed := a.speed + (float64(time_delta) * a.acc)
-	distance_travelled := (float64(time_delta) * a.speed) + (0.5 * a.acc * math.Pow(float64(time_delta), 2))
+	new_speed := a.CalculateSpeed(old_time,new_time)
+	distance_travelled := a.CalculateDistanceTravelled(old_time,new_time)
 
-	new_acc := min(a.prop.max_acc, 0.0005) //TODO: Change this to be dynamic
+	gap_ahead := total_lane_distance - distance_travelled
+	next_vehicle := curr_lane.FindNextVehicleAhead(a)
+	stopping_gap := max(1.5*a.prop.minimum_gap_size,float64(time_delta)*new_speed) //2s stop gap
+	if next_vehicle != nil {
+		gap_ahead = CalculateDistance(a.GetPosXY(),next_vehicle.GetPosXY()) + next_vehicle.CalculateDistanceTravelled(old_time,new_time) - stopping_gap
+	}
+
+	new_acc := a.prop.max_acc //TODO: Make max_acc scale inversely with current speed
+	if gap_ahead == 0 {
+		new_acc = a.prop.max_acc*-1
+	} else if gap_ahead < stopping_gap*3{
+		new_acc = (-1*math.Pow(new_speed,2))/(2*gap_ahead)
+	}
 
 	a.speed = new_speed
 	a.acc = new_acc
 
 	new_progress := min((distance_travelled+current_distance)/total_lane_distance, 1)
 	return VehiclePosition{lane_id: pos.lane_id, progress: float64(new_progress), m: pos.m}
+}
+
+func (a *Vehicle) CalculateSpeed(old_time int64, new_time int64) float64 { //Linear model for acceleration
+	time_delta := new_time-old_time
+	return a.speed + (float64(time_delta) * a.acc)
+}
+
+func (a *Vehicle) CalculateDistanceTravelled(old_time int64, new_time int64) float64 { //Linear model for acceleration
+	time_delta := new_time-old_time
+	return (float64(time_delta) * a.speed) + (0.5 * a.acc * math.Pow(float64(time_delta), 2))
 }
 
 func (a *Vehicle) FetchVehicleSim(time int64, vehicle_channel chan VehicleFetchResult) {
