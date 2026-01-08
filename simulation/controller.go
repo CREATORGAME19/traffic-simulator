@@ -84,14 +84,12 @@ func RunController() {
 			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
 		}
 		for v := 0; v < MAX_VEHICLES; v++ {
-			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel)
+			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, v)
 		}
 		wg.Wait()
 		for v := 0; v < MAX_VEHICLES; v++ {
-			if mapsim.vehicles.vehicle_array[v] != nil {
-				fetchresult := <-vehicle_channel
-				vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time} //TODO: Change this to send individual vehicles rather than grouping them.
-			}
+			fetchresult := <-vehicle_channel
+			vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time} //TODO: Change this to send individual vehicles rather than grouping them.
 		}
 		wg.Add(1)
 		frontend_chan <- vehicle_locations

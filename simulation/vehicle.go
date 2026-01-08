@@ -93,6 +93,7 @@ type VehicleFetchResult struct {
 	Y          float64
 	Time       SimTime
 	Vehicle_ID int
+	
 }
 
 func (a *Vehicle) FindNextLanePosition(mapsim *Map) VehiclePosition {
@@ -164,8 +165,9 @@ func (a *Vehicle) CalculateDistanceTravelled(old_time SimTime, new_time SimTime)
 	return (float64(time_delta) * a.speed) + (0.5 * a.acc * math.Pow(float64(time_delta), 2))
 }
 
-func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel chan VehicleFetchResult) {
+func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel chan VehicleFetchResult, id int) {
 	if a == nil {
+		vehicle_channel <- VehicleFetchResult{X: 0, Y: 0, Time: time, Vehicle_ID: id} //TODO: Set better nil vehicle behaviour
 		return
 	}
 	curr_pos := a.pos
@@ -187,13 +189,14 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 
 	coords := a.GetPosXY(mapsim)
 	a.lastFetch = time
-	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id}
 
 	if a.hasReachedDestination(mapsim) {
 		lane := a.GetCurrentLane(mapsim)
 		sink := mapsim.nodes[lane.to].agent
 		sink.DestroyVehicle(mapsim, time, a)
 	}
+
+	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id}
 }
 
 func (a *Vehicle) SwitchToNewLane(m *Map, new_pos VehiclePosition) {
