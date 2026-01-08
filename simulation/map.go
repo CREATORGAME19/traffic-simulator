@@ -1,8 +1,9 @@
 package simulation
 
 import (
-	"math"
 	"fmt"
+	"math"
+	"math/rand/v2"
 )
 
 type Position struct {
@@ -82,6 +83,16 @@ func (m *Map) AddNode(v RoadNode) {
 
 func (m *Map) AddLane(l Lane) {
 	m.lanes = append(m.lanes, l)
+}
+
+func (m *Map) FindADestinationNode() int{
+	dest_nodes := []int{}
+	for n := 0; n<len(m.nodes); n++ {
+		if m.nodes[n].agent.Descriptor() == SinkAgentType {
+			dest_nodes = append(dest_nodes, n)
+		}
+	}
+	return dest_nodes[rand.IntN(len(dest_nodes))]
 }
 
 type VehicleLaneQueue struct {
