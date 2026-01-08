@@ -17,24 +17,42 @@ var upgrader = websocket.Upgrader{
 
 func runFrontend(wg *sync.WaitGroup, channel chan []VehicleLocation) {
 	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
-		conn, _ := upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			http.Error(w, "WebSocket upgrade failed", http.StatusBadRequest)
+			return
+		}
 
-		for {
-			for data := range channel {
-				msg := ""
-				for i := 0; i < MAX_VEHICLES; i++ {
-					msg += fmt.Sprintln("Vehicle ID:", i, ", Time:", data[i].time, ", X:", data[i].x, ", Y:", data[i].y)
-				}
+		defer func() { //Cleanup when websocket connection is lost
+			conn.Close()
+			wg.Done()
+		}()
 
-				// Print the message to the console
-				fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
-
-				// Write message back to browser
-				if err := conn.WriteMessage(1, []byte(msg)); err != nil {
+		go func() { //Reader loop (Websocket)
+			for {
+				if _,_,err := conn.ReadMessage(); err != nil {
+					fmt.Println("read error:", err)
+					conn.Close()
 					return
 				}
-				wg.Done()
 			}
+		}()
+
+		for data := range channel { //Reader loop for controller channel
+			var msg string
+			for i := 0; i < MAX_VEHICLES; i++ {
+				msg += fmt.Sprintln("Vehicle ID:", i, ", Time:", data[i].time, ", X:", data[i].x, ", Y:", data[i].y)
+			}
+
+			// Print the message to the console
+			fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
+
+			// Write message back to browser
+			if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+				fmt.Println("write error:", err)
+				return
+			}
+			wg.Done()
 		}
 	})
 
