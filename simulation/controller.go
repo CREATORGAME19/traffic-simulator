@@ -3,15 +3,18 @@ package simulation
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
-const MAX_VEHICLES = 1
+const MAX_VEHICLES = 2
 
 type VehicleLocation struct {
 	x    float64
 	y    float64
-	time int64
+	time SimTime
 }
+
+type SimTime int64
 
 func RunController() {
 	var wg sync.WaitGroup
@@ -31,21 +34,21 @@ func RunController() {
 			NewPosition(0, 0),
 			[]int{0},
 			[]int{},
-			SpawnerRoadNode,
+			NewSpawnerAgent(0,1),
 		),
 		NewRoadNode(
 			1,
 			NewPosition(10, 10),
 			[]int{1},
 			[]int{0},
-			IntersectionRoadNode,
+			NewIntersectionAgent(1),
 		),
 		NewRoadNode(
 			2,
 			NewPosition(20, 20),
 			[]int{},
 			[]int{1},
-			SinkRoadNode,
+			NewSinkAgent(2),
 		),
 	}
 	lanes := []Lane{
@@ -69,26 +72,31 @@ func RunController() {
 	fmt.Println("Map Simulation: ", mapsim)
 
 	// Initialize Vehicles
-	vehicles := CreateVehicles(mapsim)
 	vehicle_locations := make([]VehicleLocation, MAX_VEHICLES)
 	vehicle_channel := make(chan VehicleFetchResult, MAX_VEHICLES) //Set number of vehicles as the size of buffer
 
-	time := 0
-	fmt.Println("Vehicles Start: ", vehicles)
-	for i := 0; i < 50; i++ { //Temporary variable i
-		for v := 0; v < len(vehicles); v++ {
-			go vehicles[v].FetchVehicleSim(int64(time), vehicle_channel)
+	var sim_time SimTime
+	sim_time = 0
+
+	fmt.Println("Vehicles Start: ", mapsim.vehicles.vehicle_array)
+	for i := 0; i < 200; i++ { //Temporary variable i
+		for a := 0; a < len(mapsim.nodes); a++ { //Trigger spawners each time
+			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
+		}
+		for v := 0; v < MAX_VEHICLES; v++ {
+			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel)
 		}
 		wg.Wait()
-		for v := 0; v < len(vehicles); v++ {
-			if vehicles[v] != nil {
+		for v := 0; v < MAX_VEHICLES; v++ {
+			if mapsim.vehicles.vehicle_array[v] != nil {
 				fetchresult := <-vehicle_channel
 				vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time} //TODO: Change this to send individual vehicles rather than grouping them.
 			}
 		}
 		wg.Add(1)
 		frontend_chan <- vehicle_locations
-		time++
+		sim_time++
+		time.Sleep(time.Second)
 	}
 
 	select {} //Temporary

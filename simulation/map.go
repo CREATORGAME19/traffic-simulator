@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"math"
+	"fmt"
 )
 
 type Position struct {
@@ -13,29 +14,16 @@ func NewPosition(x float64, y float64) Position {
 	return Position{x: x, y: y}
 }
 
-type RoadNodeType string
-
-const (
-	IntersectionRoadNode RoadNodeType = "intersection"
-	SpawnerRoadNode      RoadNodeType = "spawner"
-	SinkRoadNode         RoadNodeType = "sink"
-)
-
-type RoadNodeTypeProperties struct {
-	//TODO
-}
-
 type RoadNode struct {
 	id        int
 	pos       Position
 	lanes_out []int
 	lanes_in  []int
-	node_type RoadNodeType
-	node_prop *RoadNodeTypeProperties //TODO: Add way of defining per-node properties
+	agent     StaticAgent
 }
 
-func NewRoadNode(id int, pos Position, lanes_out []int, lanes_in []int, node_type RoadNodeType) RoadNode {
-	return RoadNode{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in, node_type: node_type}
+func NewRoadNode(id int, pos Position, lanes_out []int, lanes_in []int, agent StaticAgent) RoadNode {
+	return RoadNode{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in, agent: agent}
 }
 
 type Lane struct {
@@ -45,13 +33,13 @@ type Lane struct {
 	from          int //Node id
 	to            int //Node id
 	distance      float64
-	vehicle_queue VehicleQueue
+	vehicle_queue VehicleLaneQueue
 
 	// more Lane Properties here (like speed limit)
 }
 
 func NewLane(id int, start_pos Position, end_pos Position, from int, to int) Lane {
-	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleQueue()}
+	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue()}
 }
 
 func CalculateDistance(p1 Position, p2 Position) float64 {
@@ -60,15 +48,31 @@ func CalculateDistance(p1 Position, p2 Position) float64 {
 	return math.Sqrt(math.Pow(change_x, 2) + math.Pow(change_y, 2))
 }
 
+type VehicleDB struct {
+	vehicle_array []*Vehicle
+	next_empty int64
+}
+
+func FindNextEmptyVehicles(mapsim *Map) int{
+	for i:=0;i<MAX_VEHICLES;i++ {
+		if mapsim.vehicles.vehicle_array[i] == nil {
+			return i
+		}
+	}
+	return MAX_VEHICLES
+}
+
 type Map struct {
 	nodes []RoadNode
 	lanes []Lane
+	vehicles VehicleDB
 }
 
 func InitialiseMap(v []RoadNode, l []Lane) *Map {
 	return &Map{
 		nodes: v,
 		lanes: l,
+		vehicles: VehicleDB{vehicle_array: make([]*Vehicle, MAX_VEHICLES), next_empty: 0},
 	}
 }
 
@@ -80,32 +84,32 @@ func (m *Map) AddLane(l Lane) {
 	m.lanes = append(m.lanes, l)
 }
 
-type VehicleQueue struct {
-	vehicles []*Vehicle
+type VehicleLaneQueue struct {
+	vehicles   []*Vehicle
 	next_empty int
 }
 
-func EmptyVehicleQueue() VehicleQueue{
-	return VehicleQueue{vehicles: make([]*Vehicle, MAX_VEHICLES), next_empty: 0}
+func EmptyVehicleLaneQueue() VehicleLaneQueue {
+	return VehicleLaneQueue{vehicles: make([]*Vehicle, MAX_VEHICLES), next_empty: 0}
 }
 
-func (l Lane) ReplaceNextEmpty() {
-	for i:=0;i<MAX_VEHICLES;i++ {
+func (l *Lane) ReplaceNextEmpty() {
+	for i := 0; i < MAX_VEHICLES; i++ {
 		if l.vehicle_queue.vehicles[i] == nil {
 			l.vehicle_queue.next_empty = i
 			return
 		}
 	}
-	println("Error: No more space in lane queue!")
+	l.vehicle_queue.next_empty = MAX_VEHICLES
 }
 
-func (l Lane) FindNextVehicleAhead(v *Vehicle) *Vehicle {
+func (l *Lane) FindNextVehicleAhead(v *Vehicle) *Vehicle {
 	vehicle_queue := l.vehicle_queue
 	progress := v.pos.progress
 	closest_progress := 1.1
 	var closest_vehicle *Vehicle
 	closest_vehicle = nil
-	for i:=0;i<MAX_VEHICLES;i++ {
+	for i := 0; i < MAX_VEHICLES; i++ {
 		vehicle_candidate := vehicle_queue.vehicles[i]
 		if (vehicle_candidate != nil) && (vehicle_candidate != v) && (progress <= vehicle_candidate.pos.progress) && (vehicle_candidate.pos.progress < closest_progress) {
 			closest_progress = vehicle_candidate.pos.progress
@@ -115,13 +119,13 @@ func (l Lane) FindNextVehicleAhead(v *Vehicle) *Vehicle {
 	return closest_vehicle
 }
 
-func (l Lane) FindNextVehicleAheadFromPos(desired_pos VehiclePosition) *Vehicle {
+func (l *Lane) FindNextVehicleAheadFromPos(desired_pos VehiclePosition) *Vehicle {
 	vehicle_queue := l.vehicle_queue
 	progress := desired_pos.progress
 	closest_progress := 1.1
 	var closest_vehicle *Vehicle
 	closest_vehicle = nil
-	for i:=0;i<MAX_VEHICLES;i++ {
+	for i := 0; i < MAX_VEHICLES; i++ {
 		vehicle_candidate := vehicle_queue.vehicles[i]
 		if (vehicle_candidate != nil) && (progress <= vehicle_candidate.pos.progress) && (vehicle_candidate.pos.progress < closest_progress) {
 			closest_progress = vehicle_candidate.pos.progress
@@ -131,24 +135,25 @@ func (l Lane) FindNextVehicleAheadFromPos(desired_pos VehiclePosition) *Vehicle 
 	return closest_vehicle
 }
 
-func (l Lane) RemoveVehicleFromQueue(v *Vehicle) {
-	vehicle_queue := l.vehicle_queue
-	for i:=0;i<MAX_VEHICLES;i++{
-		vehicle_candidate := vehicle_queue.vehicles[i]
+func (l *Lane) RemoveVehicleFromQueue(v *Vehicle) {
+	for i := 0; i < MAX_VEHICLES; i++ {
+		vehicle_candidate := l.vehicle_queue.vehicles[i]
 		if vehicle_candidate == v {
-			vehicle_queue.vehicles[i] = nil
-			vehicle_queue.next_empty = min(vehicle_queue.next_empty,i) //Change next empty if smaller
+			l.vehicle_queue.vehicles[i] = nil
+			l.vehicle_queue.next_empty = min(l.vehicle_queue.next_empty, i) //Change next empty if smaller
 			return
 		}
 	}
-	println("Error: Vehicle cannot be deleted! Not found in queue!")
+	fmt.Println("Error: Vehicle cannot be deleted! Not found in queue!")
 }
 
-func (l Lane) AddVehicleToQueue(v *Vehicle) {
-	vehicle_queue := l.vehicle_queue
-	if vehicle_queue.vehicles[vehicle_queue.next_empty] != nil {
-		println("Error: Vehicle queue next empty is not empty!")
+func (l *Lane) AddVehicleToQueue(v *Vehicle) {
+	//fmt.Println("Before:",l.vehicle_queue.vehicles,l.vehicle_queue.next_empty)
+	if l.vehicle_queue.vehicles[l.vehicle_queue.next_empty] != nil {
+		fmt.Println("Error: Vehicle queue next empty",l.vehicle_queue.next_empty,"is not empty!")
 		return
 	}
-	vehicle_queue.vehicles[vehicle_queue.next_empty] = v
+	l.vehicle_queue.vehicles[l.vehicle_queue.next_empty] = v
+	l.ReplaceNextEmpty()
+	//fmt.Println("After:",l.vehicle_queue.vehicles,l.vehicle_queue.next_empty)
 }
