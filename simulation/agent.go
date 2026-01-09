@@ -6,12 +6,12 @@ type StaticAgent interface {
 	Descriptor() StaticAgentType
 }
 
-type StaticAgentType string
+type StaticAgentType int
 
 const (
-	IntersectionAgentType StaticAgentType = "intersection"
-	SpawnerAgentType StaticAgentType = "spawner"
-	SinkAgentType StaticAgentType = "sink"
+	IntersectionAgentType StaticAgentType = 0
+	SpawnerAgentType StaticAgentType = 1
+	SinkAgentType StaticAgentType = 2
 )
 
 type IntersectionAgent struct {
@@ -53,7 +53,7 @@ func (a *SpawnerAgent) Descriptor() StaticAgentType {
 func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 	a.lastFetch = time
 	if mapsim.vehicles.next_empty >= MAX_VEHICLES {
-		println("Vehicle limit reached!")
+		//println("Vehicle limit reached!") //WARNING
 		return
 	}
 	a.accumulator += a.spawn_rate

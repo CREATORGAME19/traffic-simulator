@@ -7,7 +7,6 @@ import (
 type VehiclePosition struct {
 	lane_id  int
 	progress float64
-
 }
 
 func NewVehicleNodePos(node int) VehiclePosition {
@@ -88,12 +87,19 @@ func ConvertVehiclePosToXY(m *Map, vehicle_pos VehiclePosition) Position {
 	return Position{x: from_coords.x + (diff_x * progress), y: from_coords.y + (diff_y * progress)}
 }
 
+type VehicleStatus int 
+
+const (
+	NilVehicle VehicleStatus = 0
+	VehicleInTransit VehicleStatus = 1
+)
+
 type VehicleFetchResult struct {
 	X          float64
 	Y          float64
 	Time       SimTime
 	Vehicle_ID int
-	
+	Status     VehicleStatus
 }
 
 func (a *Vehicle) FindNextLanePosition(mapsim *Map) VehiclePosition {
@@ -167,7 +173,7 @@ func (a *Vehicle) CalculateDistanceTravelled(old_time SimTime, new_time SimTime)
 
 func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel chan VehicleFetchResult, id int) {
 	if a == nil {
-		vehicle_channel <- VehicleFetchResult{X: 0, Y: 0, Time: time, Vehicle_ID: id} //TODO: Set better nil vehicle behaviour
+		vehicle_channel <- VehicleFetchResult{X: 0, Y: 0, Time: time, Vehicle_ID: id, Status: NilVehicle}
 		return
 	}
 	curr_pos := a.pos
@@ -179,7 +185,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 
 		coords := curr_node.pos
 		a.lastFetch = time
-		vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id}
+		vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id, Status: VehicleInTransit}
 		return
 	}
 
@@ -196,7 +202,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 		sink.DestroyVehicle(mapsim, time, a)
 	}
 
-	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id}
+	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id, Status: VehicleInTransit}
 }
 
 func (a *Vehicle) SwitchToNewLane(m *Map, new_pos VehiclePosition) {

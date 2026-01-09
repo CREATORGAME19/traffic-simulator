@@ -8,24 +8,22 @@ import (
 
 const MAX_VEHICLES = 2
 
+const NUM_RUNS = 200
+
 type VehicleLocation struct {
-	x    float64
-	y    float64
-	time SimTime
+	id     int
+	x      float64
+	y      float64
+	time   SimTime
+	status VehicleStatus
 }
+
+type VehicleInfoDatagram VehicleLocation
 
 type SimTime int64
 
 func RunController() {
 	var wg sync.WaitGroup
-	frontend_chan := make(chan []VehicleLocation)
-	go runFrontend(&wg, frontend_chan)
-
-	err := open_url("http://localhost:" + PORT)
-	if err != nil {
-		fmt.Println("Error opening browser!")
-		return
-	}
 
 	// Initialize Map
 	nodes := []RoadNode{
@@ -34,7 +32,7 @@ func RunController() {
 			NewPosition(0, 0),
 			[]int{0},
 			[]int{},
-			NewSpawnerAgent(0,1),
+			NewSpawnerAgent(0, 1),
 		),
 		NewRoadNode(
 			1,
@@ -69,6 +67,15 @@ func RunController() {
 	}
 	mapsim := InitialiseMap(nodes, lanes)
 
+	frontend_chan := make(chan VehicleInfoDatagram, MAX_VEHICLES)
+	go runFrontend(&wg, frontend_chan, mapsim, NUM_RUNS)
+
+	err := open_url("http://localhost:" + PORT)
+	if err != nil {
+		fmt.Println("Error opening browser!")
+		return
+	}
+
 	fmt.Println("Map Simulation: ", mapsim)
 
 	// Initialize Vehicles
@@ -79,7 +86,7 @@ func RunController() {
 	sim_time = 0
 
 	fmt.Println("Vehicles Start: ", mapsim.vehicles.vehicle_array)
-	for i := 0; i < 200; i++ { //Temporary variable i
+	for i := 0; i < NUM_RUNS; i++ {
 		for a := 0; a < len(mapsim.nodes); a++ { //Trigger spawners each time
 			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
 		}
@@ -88,11 +95,13 @@ func RunController() {
 		}
 		wg.Wait()
 		for v := 0; v < MAX_VEHICLES; v++ {
+			wg.Add(1)
 			fetchresult := <-vehicle_channel
-			vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.X, fetchresult.Y, fetchresult.Time} //TODO: Change this to send individual vehicles rather than grouping them.
+			vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.Vehicle_ID, fetchresult.X, fetchresult.Y, fetchresult.Time, fetchresult.Status}
 		}
-		wg.Add(1)
-		frontend_chan <- vehicle_locations
+		for v := 0; v < MAX_VEHICLES; v++ {
+			frontend_chan <- VehicleInfoDatagram(vehicle_locations[v])
+		}
 		sim_time++
 		time.Sleep(time.Second)
 	}
