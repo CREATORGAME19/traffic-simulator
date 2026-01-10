@@ -11,7 +11,7 @@
       margin: auto;
     }
 
-    svg {
+    .map {
       border: 1px solid #444;
       background: #ffffff;
       min-height:60vh;
@@ -20,10 +20,15 @@
     }
 
     circle {
-      fill: #000000;
+      r: 3;
     }
 
-    div.output-log {
+    line {
+        stroke: #000000;
+        stroke-width: 2;
+    }
+
+    .output-log {
         overflow-y: scroll;
         height: 39vh;
     }
@@ -31,17 +36,19 @@
 </head>
 <body>
 
-<svg width="99.7%" height="100%">
-  <g></g>
-</svg>
-
+<div class="map" width="99.7%" height="100%">
+    <svg width="100%" height="100%">
+    <g></g>
+    </svg>
+</div>
 <script>
   const { select, zoom } = d3;
 
-  let data = [],
-      width = 600,
-      height = 400,
-      numPoints = 100;
+  let vehicle_data = [];
+  let node_data = [];
+  let lane_data = [];
+  let width = document.querySelector('.map').offsetWidth;
+  let height = document.querySelector('.map').offsetHeight;
 
   const zoomBehavior = zoom()
     .scaleExtent([0.5, 10])
@@ -57,18 +64,68 @@
       .call(zoomBehavior);
   }
 
-  function updateData(d) {
-    data = d;
+  function center() {
+	select('svg')
+		.transition()
+		.call(zoomBehavior.translateTo, 0, 0);
+  }
+
+  function updateNodes(n) {
+    node_data = n;
+  }
+
+  function updateLanes(l) {
+    lane_data = l;
+  }
+
+  function updateVehicles(v) {
+    vehicle_data = v;
+  }
+
+  function renderStaticMap() {
+    select('svg g')
+      .selectAll('line')
+      .data(lane_data, d => d.Lane_ID)
+      .join('line')
+      .attr('x1', d => convertX(d.Start_X))
+      .attr('y1', d => convertY(d.Start_Y))
+      .attr('x2', d => convertX(d.End_X))
+      .attr('y2', d => convertY(d.End_Y));
+    select('svg g')
+      .selectAll('circle')
+      .data(node_data, d => d.Node_ID)
+      .join('circle')
+      .attr('cx', d => convertX(d.X))
+      .attr('cy', d => convertY(d.Y))
+      .attr('r', 5)
+      .attr('fill', d => {
+        switch (d.AgentType) {
+            case 0:
+                return '#00000';
+                break;
+            case 1:
+                return '#FF0000';
+                break;
+            case 2:
+                return '#0000FF';
+                break;
+            default:
+                return '#00000'
+        }
+      });
   }
 
   function update() {
     select('svg g')
-      .selectAll('circle')
-      .data(data, d => d.Vehicle_ID)
-      .join('circle')
-      .attr('cx', d => convertX(d.X))
-      .attr('cy', d => convertY(d.Y))
-      .attr('r', 3);
+      .selectAll('image')
+      .data(vehicle_data, d => d.Vehicle_ID)
+      .join('image')
+      .attr('href','/static/bus-logo.png')
+      .attr('width', 30)
+      .attr('height', 30)
+      .attr('x', d => convertX(d.X)-15)
+      .attr('y', d => convertY(d.Y)-15)
+      .attr('opacity', d => d.Status);
   }
 
   function convertX(x) {
@@ -80,6 +137,7 @@
   }
 
   initZoom();
+  center();
 </script>
 
 <div class="output-log">
@@ -93,18 +151,30 @@
         output.innerHTML += "Status: Connected\n";
     };
 
+    socket.onclose = function () {
+        output.innerHTML += "Status: Disconnected\n";
+    }
+
     socket.onmessage = function (e) {
         const msg = JSON.parse(e.data);
+        const msg_data = msg.Data;
+        switch (msg.Type) {
+            case "vehicle_message":
+                updateVehicles(msg_data);
+                update();
 
-        if (msg.Type == "vehicle_message") {
-            const msg_data = msg.Data;
-            updateData(msg_data);
-            update();
-
-            for (let i = 0; i < msg_data.length; i++) {
-                output.innerHTML += "Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n";
-            }
-            output.innerHTML += "\n"
+                for (let i = 0; i < msg_data.length; i++) {
+                    output.innerHTML += "Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n";
+                }
+                output.innerHTML += "\n";
+                break;
+            case "map_setup_message":
+                updateNodes(msg_data.Nodes);
+                updateLanes(msg_data.Lanes);
+                renderStaticMap();
+                break;
+            default:
+                output.innerHTML += "Error: Unknown message received!\n";
         }
         
     };

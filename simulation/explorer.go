@@ -27,6 +27,22 @@ type VehicleMessage struct {
 	Time SimTime
 }
 
+type MapSetupMessage struct {
+	Nodes []MapNodeSetupMessage
+	Lanes []MapLaneSetupMessage
+}
+
+type MapNodeSetupMessage struct {
+	Node_ID int
+	X, Y float64
+	AgentType StaticAgentType
+}
+
+type MapLaneSetupMessage struct {
+	Lane_ID int
+	Start_X, Start_Y, End_X, End_Y float64
+}
+
 var reader sync.WaitGroup
 
 func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *Map, runs int) {
@@ -53,10 +69,15 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 		reader.Wait()
 		reader.Add(1) //Only one reader allowed at once
 
+		if err := SendMapSetupMessage(conn, mapsim); err != nil {
+			fmt.Println("Write Error:", err)
+			return
+		}
+
 		run := 0
 		for current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
 			if err := SendWebVehicleMessage(conn, vehicle_fetch_history[run]); err != nil {
-				fmt.Println("write error:", err)
+				fmt.Println("Write Error:", err)
 				return
 			}
 			run++
@@ -65,7 +86,7 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 		//go func() { //Reader loop(Websocket)
 		//	for {
 		//		if _,_,err := conn.ReadMessage(); err != nil {
-		//			fmt.Println("read error:", err)
+		//			fmt.Println("Read Error:", err)
 		//			return
 		//		}
 		//	}
@@ -81,13 +102,16 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 				current_run++
 
 				if err := SendWebVehicleMessage(conn, vehicle_fetch_history[current_run-1]); err != nil {
-					fmt.Println("write error:", err)
+					fmt.Println("Write Error:", err)
 					return
 				}
 			}
 		}
 
 	})
+
+	fs := http.FileServer(http.Dir("templates/static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "templates/index.html")
@@ -102,4 +126,15 @@ func SendWebVehicleMessage(conn *websocket.Conn, data []VehicleInfoDatagram) err
 		msg[i] = VehicleMessage{Vehicle_ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status}
 	}
 	return conn.WriteJSON(Message{Type:"vehicle_message", Data: msg})
+}
+
+func SendMapSetupMessage(conn *websocket.Conn, mapsim *Map) error {
+	msg := MapSetupMessage{Nodes: make([]MapNodeSetupMessage,len(mapsim.nodes)), Lanes: make([]MapLaneSetupMessage, len(mapsim.lanes))}
+	for n:=0;n<len(mapsim.nodes);n++ {
+		msg.Nodes[n] = MapNodeSetupMessage{Node_ID: mapsim.nodes[n].id, X: mapsim.nodes[n].pos.x, Y: mapsim.nodes[n].pos.y, AgentType: mapsim.nodes[n].agent.Descriptor()}
+	}
+	for l:=0;l<len(mapsim.lanes);l++ {
+		msg.Lanes[l] = MapLaneSetupMessage{Lane_ID: mapsim.lanes[l].id, Start_X: mapsim.lanes[l].start_pos.x, Start_Y: mapsim.lanes[l].start_pos.y, End_X: mapsim.lanes[l].end_pos.x, End_Y: mapsim.lanes[l].end_pos.y}
+	}
+	return conn.WriteJSON(Message{Type:"map_setup_message", Data: msg})
 }

@@ -32,7 +32,7 @@ func RunController() {
 			NewPosition(0, 0),
 			[]int{0},
 			[]int{},
-			NewSpawnerAgent(0, 1),
+			NewSpawnerAgent(0, 0.25),
 		),
 		NewRoadNode(
 			1,
