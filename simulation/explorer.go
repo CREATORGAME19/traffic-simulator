@@ -73,25 +73,17 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 
 		for data := range channel { //Reader loop for controller channel
 			vehicle_fetch_history[current_run][data.id] = data
-			vehicles_seen++
+			vehicles_seen++			
 			wg.Done()
 
 			if vehicles_seen >= MAX_VEHICLES {
-				//var msg string
-				//for i := 0; i < MAX_VEHICLES; i++ {
-				//	msg += fmt.Sprintln("Vehicle ID:", i, ", Time:", vehicle_fetch_history[current_run][i].time, ", X:", vehicle_fetch_history[current_run][i].x, ", Y:", vehicle_fetch_history[current_run][i].y, ", Status:", vehicle_fetch_history[current_run][i].status)
-				//}
-
-				if err := SendWebVehicleMessage(conn, vehicle_fetch_history[current_run]); err != nil {
-					fmt.Println("write error:", err)
-					return
-				}
-
 				vehicles_seen -= MAX_VEHICLES
 				current_run++
 
-				// Print the message to the console
-				//fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
+				if err := SendWebVehicleMessage(conn, vehicle_fetch_history[current_run-1]); err != nil {
+					fmt.Println("write error:", err)
+					return
+				}
 			}
 		}
 
