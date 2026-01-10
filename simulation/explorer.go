@@ -15,12 +15,23 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+type Message struct {
+	Type string
+	Data interface{}
+}
+
+type VehicleMessage struct {
+	Vehicle_ID int
+	X, Y float64
+	Status VehicleStatus
+	Time SimTime
+}
+
 var reader sync.WaitGroup
 
 func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *Map, runs int) {
-	//TODO: Use map data to construct initial frontend map
-	vehicle_fetch_history := make([][]VehicleInfoDatagram,runs)
-	for i:=0;i<runs;i++ {
+	vehicle_fetch_history := make([][]VehicleInfoDatagram, runs)
+	for i := 0; i < runs; i++ {
 		vehicle_fetch_history[i] = make([]VehicleInfoDatagram, MAX_VEHICLES)
 	}
 
@@ -44,12 +55,7 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 
 		run := 0
 		for current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
-			var msg string
-			for i := 0; i < MAX_VEHICLES; i++ {
-				msg += fmt.Sprintln("Vehicle ID:", i, ", Time:", vehicle_fetch_history[run][i].time, ", X:",  vehicle_fetch_history[run][i].x, ", Y:",  vehicle_fetch_history[run][i].y)
-			}
-
-			if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			if err := SendWebVehicleMessage(conn, vehicle_fetch_history[run]); err != nil {
 				fmt.Println("write error:", err)
 				return
 			}
@@ -64,7 +70,6 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 		//		}
 		//	}
 		//}()
-		
 
 		for data := range channel { //Reader loop for controller channel
 			vehicle_fetch_history[current_run][data.id] = data
@@ -72,25 +77,23 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 			wg.Done()
 
 			if vehicles_seen >= MAX_VEHICLES {
-				var msg string
-				for i := 0; i < MAX_VEHICLES; i++ {
-					msg += fmt.Sprintln("Vehicle ID:", i, ", Time:", vehicle_fetch_history[current_run][i].time, ", X:",  vehicle_fetch_history[current_run][i].x, ", Y:",  vehicle_fetch_history[current_run][i].y)
+				//var msg string
+				//for i := 0; i < MAX_VEHICLES; i++ {
+				//	msg += fmt.Sprintln("Vehicle ID:", i, ", Time:", vehicle_fetch_history[current_run][i].time, ", X:", vehicle_fetch_history[current_run][i].x, ", Y:", vehicle_fetch_history[current_run][i].y, ", Status:", vehicle_fetch_history[current_run][i].status)
+				//}
+
+				if err := SendWebVehicleMessage(conn, vehicle_fetch_history[current_run]); err != nil {
+					fmt.Println("write error:", err)
+					return
 				}
-				
+
 				vehicles_seen -= MAX_VEHICLES
 				current_run++
 
 				// Print the message to the console
-				fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
-
-				// Write message back to browser
-				if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-					fmt.Println("write error:", err)
-					return
-				}
+				//fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
 			}
 		}
-
 
 	})
 
@@ -101,3 +104,10 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 	http.ListenAndServe(":"+PORT, nil)
 }
 
+func SendWebVehicleMessage(conn *websocket.Conn, data []VehicleInfoDatagram) error{
+	msg := make([]VehicleMessage, len(data))
+	for i:=0;i<len(data);i++ {
+		msg[i] = VehicleMessage{Vehicle_ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status}
+	}
+	return conn.WriteJSON(Message{Type:"vehicle_message", Data: msg})
+}

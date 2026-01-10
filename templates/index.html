@@ -1,4 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Traffic Simulator</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #ffffff;
+      margin: auto;
+    }
+
+    svg {
+      border: 1px solid #444;
+      background: #ffffff;
+      min-height:60vh;
+      height:60vh;
+      margin: auto;
+    }
+
+    circle {
+      fill: #000000;
+    }
+
+    div.output-log {
+        overflow-y: scroll;
+        height: 39vh;
+    }
+  </style>
+</head>
+<body>
+
+<svg width="99.7%" height="100%">
+  <g></g>
+</svg>
+
+<script>
+  const { select, zoom } = d3;
+
+  let data = [],
+      width = 600,
+      height = 400,
+      numPoints = 100;
+
+  const zoomBehavior = zoom()
+    .scaleExtent([0.5, 10])
+    .on('zoom', handleZoom);
+
+  function handleZoom(e) {
+    select('svg g')
+      .attr('transform', e.transform);
+  }
+
+  function initZoom() {
+    select('svg')
+      .call(zoomBehavior);
+  }
+
+  function updateData(d) {
+    data = d;
+  }
+
+  function update() {
+    select('svg g')
+      .selectAll('circle')
+      .data(data, d => d.Vehicle_ID)
+      .join('circle')
+      .attr('cx', d => convertX(d.X))
+      .attr('cy', d => convertY(d.Y))
+      .attr('r', 3);
+  }
+
+  function convertX(x) {
+    return x*10
+  }
+
+  function convertY(y) {
+    return y*-10
+  }
+
+  initZoom();
+</script>
+
+<div class="output-log">
 <pre id="output"></pre>
+</div>
 <script>
     var output = document.getElementById("output");
     var socket = new WebSocket("ws://localhost:8080/echo");
@@ -8,6 +94,21 @@
     };
 
     socket.onmessage = function (e) {
-        output.innerHTML += e.data + "\n";
+        const msg = JSON.parse(e.data);
+
+        if (msg.Type == "vehicle_message") {
+            const msg_data = msg.Data;
+            updateData(msg_data);
+            update();
+
+            for (let i = 0; i < msg_data.length; i++) {
+                output.innerHTML += "Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n";
+            }
+            output.innerHTML += "\n"
+        }
+        
     };
 </script>
+
+</body>
+</html>
