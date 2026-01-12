@@ -34,7 +34,7 @@ type Lane struct {
 	from          int //Node id
 	to            int //Node id
 	distance      float64
-	vehicle_queue VehicleLaneQueue
+	vehicle_queue *VehicleLaneQueue
 
 	// more Lane Properties here (like speed limit)
 }
@@ -51,11 +51,11 @@ func CalculateDistance(p1 Position, p2 Position) float64 {
 
 type VehicleDB struct {
 	vehicle_array []*Vehicle
-	next_empty int64
+	next_empty    int64
 }
 
-func FindNextEmptyVehicles(mapsim *Map) int{
-	for i:=0;i<MAX_VEHICLES;i++ {
+func FindNextEmptyVehicles(mapsim *Map) int {
+	for i := 0; i < MAX_VEHICLES; i++ {
 		if mapsim.vehicles.vehicle_array[i] == nil {
 			return i
 		}
@@ -64,15 +64,15 @@ func FindNextEmptyVehicles(mapsim *Map) int{
 }
 
 type Map struct {
-	nodes []RoadNode
-	lanes []Lane
+	nodes    []RoadNode
+	lanes    []Lane
 	vehicles VehicleDB
 }
 
 func InitialiseMap(v []RoadNode, l []Lane) *Map {
 	return &Map{
-		nodes: v,
-		lanes: l,
+		nodes:    v,
+		lanes:    l,
 		vehicles: VehicleDB{vehicle_array: make([]*Vehicle, MAX_VEHICLES), next_empty: 0},
 	}
 }
@@ -85,9 +85,9 @@ func (m *Map) AddLane(l Lane) {
 	m.lanes = append(m.lanes, l)
 }
 
-func (m *Map) FindADestinationNode() int{
+func (m *Map) FindADestinationNode() int {
 	dest_nodes := []int{}
-	for n := 0; n<len(m.nodes); n++ {
+	for n := 0; n < len(m.nodes); n++ {
 		if m.nodes[n].agent.Descriptor() == SinkAgentType {
 			dest_nodes = append(dest_nodes, n)
 		}
@@ -97,47 +97,36 @@ func (m *Map) FindADestinationNode() int{
 
 type VehicleLaneQueue struct {
 	vehicles   []*Vehicle
-	next_empty int
 }
 
-func EmptyVehicleLaneQueue() VehicleLaneQueue {
-	return VehicleLaneQueue{vehicles: make([]*Vehicle, MAX_VEHICLES), next_empty: 0}
+func EmptyVehicleLaneQueue() *VehicleLaneQueue {
+	return &VehicleLaneQueue{vehicles: make([]*Vehicle, MAX_VEHICLES)}
 }
 
-func (l *Lane) ReplaceNextEmpty() {
-	for i := 0; i < MAX_VEHICLES; i++ {
-		if l.vehicle_queue.vehicles[i] == nil {
-			l.vehicle_queue.next_empty = i
-			return
-		}
-	}
-	l.vehicle_queue.next_empty = MAX_VEHICLES
-}
-
-func (l *Lane) FindNextVehicleAhead(v *Vehicle) *Vehicle {
-	vehicle_queue := l.vehicle_queue
+func (l *Lane) FindNextVehicleAhead(v *Vehicle, t SimTime) *Vehicle {
 	progress := v.pos.progress
 	closest_progress := 1.1
 	var closest_vehicle *Vehicle
 	closest_vehicle = nil
 	for i := 0; i < MAX_VEHICLES; i++ {
-		vehicle_candidate := vehicle_queue.vehicles[i]
-		if (vehicle_candidate != nil) && (vehicle_candidate != v) && (progress <= vehicle_candidate.pos.progress) && (vehicle_candidate.pos.progress < closest_progress) {
-			closest_progress = vehicle_candidate.pos.progress
-			closest_vehicle = vehicle_candidate
+		if (l.vehicle_queue.vehicles[i] != nil) && (progress == l.vehicle_queue.vehicles[i].pos.progress) {
+			//println("Collision:",v.id,i,t, progress) //Warning
+		}
+		if (l.vehicle_queue.vehicles[i] != nil) && (l.vehicle_queue.vehicles[i] != v) && (progress < l.vehicle_queue.vehicles[i].pos.progress) && (l.vehicle_queue.vehicles[i].pos.progress < closest_progress) {
+			closest_progress = l.vehicle_queue.vehicles[i].pos.progress
+			closest_vehicle = l.vehicle_queue.vehicles[i]
 		}
 	}
 	return closest_vehicle
 }
 
 func (l *Lane) FindNextVehicleAheadFromPos(desired_pos VehiclePosition) *Vehicle {
-	vehicle_queue := l.vehicle_queue
 	progress := desired_pos.progress
 	closest_progress := 1.1
 	var closest_vehicle *Vehicle
 	closest_vehicle = nil
 	for i := 0; i < MAX_VEHICLES; i++ {
-		vehicle_candidate := vehicle_queue.vehicles[i]
+		vehicle_candidate := l.vehicle_queue.vehicles[i]
 		if (vehicle_candidate != nil) && (progress <= vehicle_candidate.pos.progress) && (vehicle_candidate.pos.progress < closest_progress) {
 			closest_progress = vehicle_candidate.pos.progress
 			closest_vehicle = vehicle_candidate
@@ -147,24 +136,13 @@ func (l *Lane) FindNextVehicleAheadFromPos(desired_pos VehiclePosition) *Vehicle
 }
 
 func (l *Lane) RemoveVehicleFromQueue(v *Vehicle) {
-	for i := 0; i < MAX_VEHICLES; i++ {
-		vehicle_candidate := l.vehicle_queue.vehicles[i]
-		if vehicle_candidate == v {
-			l.vehicle_queue.vehicles[i] = nil
-			l.vehicle_queue.next_empty = min(l.vehicle_queue.next_empty, i) //Change next empty if smaller
-			return
-		}
-	}
-	fmt.Println("Error: Vehicle cannot be deleted! Not found in queue!")
+	l.vehicle_queue.vehicles[v.id] = nil
 }
 
 func (l *Lane) AddVehicleToQueue(v *Vehicle) {
-	//fmt.Println("Before:",l.vehicle_queue.vehicles,l.vehicle_queue.next_empty)
-	if l.vehicle_queue.vehicles[l.vehicle_queue.next_empty] != nil {
-		fmt.Println("Error: Vehicle queue next empty",l.vehicle_queue.next_empty,"is not empty!")
+	if l.vehicle_queue.vehicles[v.id] != nil {
+		fmt.Println("Error: Vehicle queue", v.id, "is not empty!")
 		return
 	}
-	l.vehicle_queue.vehicles[l.vehicle_queue.next_empty] = v
-	l.ReplaceNextEmpty()
-	//fmt.Println("After:",l.vehicle_queue.vehicles,l.vehicle_queue.next_empty)
+	l.vehicle_queue.vehicles[v.id] = v
 }

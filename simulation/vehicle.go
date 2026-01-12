@@ -123,8 +123,7 @@ func (a *Vehicle) GetCurrentLane(m *Map) *Lane {
 func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, pos VehiclePosition) VehiclePosition {
 	if pos.progress == 1 {
 		desired_pos := a.FindNextLanePosition(m)
-		curr_lane := a.GetCurrentLane(m)
-		if curr_lane.FindNextVehicleAhead(a) == nil && a.isLaneFreeAtPos(m, desired_pos) {
+		if a.isLaneFreeAtPos(m, desired_pos) { //Eventually check needs to be added if vehicle is at head of queue
 			a.SwitchToNewLane(m, desired_pos) //If lane is free to enter, then proceed to the requested position
 			pos = desired_pos
 		} else { //Otherwise wait
@@ -141,7 +140,7 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	distance_travelled := a.CalculateDistanceTravelled(old_time, new_time)
 
 	gap_ahead := total_lane_distance - distance_travelled
-	next_vehicle := curr_lane.FindNextVehicleAhead(a)
+	next_vehicle := curr_lane.FindNextVehicleAhead(a, new_time)
 	stopping_gap := max(0.5*a.prop.minimum_gap_size, 2*new_speed) //2s stop gap
 	if next_vehicle != nil {
 		gap_ahead = CalculateDistance(a.GetPosXY(m), next_vehicle.GetPosXY(m)) + next_vehicle.CalculateDistanceTravelled(old_time, new_time) - stopping_gap

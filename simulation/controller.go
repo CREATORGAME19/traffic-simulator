@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const MAX_VEHICLES = 2
+const MAX_VEHICLES = 50
 
 const NUM_RUNS = 200
 
@@ -32,7 +32,7 @@ func RunController() {
 			NewPosition(-400, -400),
 			[]int{0},
 			[]int{},
-			NewSpawnerAgent(0, 0.25),
+			NewSpawnerAgent(0, 0.025),
 		),
 		NewRoadNode(
 			1,
@@ -85,7 +85,6 @@ func RunController() {
 	var sim_time SimTime
 	sim_time = 0
 
-	fmt.Println("Vehicles Start: ", mapsim.vehicles.vehicle_array)
 	for i := 0; i < NUM_RUNS; i++ {
 		for a := 0; a < len(mapsim.nodes); a++ { //Trigger spawners each time
 			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
@@ -103,7 +102,7 @@ func RunController() {
 			frontend_chan <- VehicleInfoDatagram(vehicle_locations[v])
 		}
 		sim_time++
-		time.Sleep(time.Second)
+		time.Sleep(50*time.Millisecond)
 	}
 
 	select {} //Temporary
