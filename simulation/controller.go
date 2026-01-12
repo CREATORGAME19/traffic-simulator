@@ -29,21 +29,21 @@ func RunController() {
 	nodes := []RoadNode{
 		NewRoadNode(
 			0,
-			NewPosition(0, 0),
+			NewPosition(-400, -400),
 			[]int{0},
 			[]int{},
 			NewSpawnerAgent(0, 0.25),
 		),
 		NewRoadNode(
 			1,
-			NewPosition(10, 10),
+			NewPosition(0, 0),
 			[]int{1},
 			[]int{0},
 			NewIntersectionAgent(1),
 		),
 		NewRoadNode(
 			2,
-			NewPosition(20, 20),
+			NewPosition(600, 600),
 			[]int{},
 			[]int{1},
 			NewSinkAgent(2),
@@ -52,15 +52,15 @@ func RunController() {
 	lanes := []Lane{
 		NewLane(
 			0,
+			NewPosition(-400, -400),
 			NewPosition(0, 0),
-			NewPosition(10, 10),
 			0,
 			1,
 		),
 		NewLane(
 			1,
-			NewPosition(10, 10),
-			NewPosition(20, 20),
+			NewPosition(0, 0),
+			NewPosition(600, 600),
 			1,
 			2,
 		),

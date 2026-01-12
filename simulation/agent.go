@@ -57,7 +57,11 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		return
 	}
 	a.accumulator += a.spawn_rate
-	if a.accumulator >= 1.0 {
+	for a.accumulator >= 1.0 {
+		if mapsim.vehicles.next_empty >= MAX_VEHICLES {
+			//println("Vehicle limit reached!") //WARNING
+			return
+		}
 		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(int(mapsim.vehicles.next_empty),int(a.road_node_id),mapsim.FindADestinationNode())
 		mapsim.vehicles.next_empty = int64(FindNextEmptyVehicles(mapsim))
 		a.accumulator -= 1

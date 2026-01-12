@@ -41,104 +41,7 @@
     <g></g>
     </svg>
 </div>
-<script>
-  const { select, zoom } = d3;
-
-  let vehicle_data = [];
-  let node_data = [];
-  let lane_data = [];
-  let width = document.querySelector('.map').offsetWidth;
-  let height = document.querySelector('.map').offsetHeight;
-
-  const zoomBehavior = zoom()
-    .scaleExtent([0.5, 10])
-    .on('zoom', handleZoom);
-
-  function handleZoom(e) {
-    select('svg g')
-      .attr('transform', e.transform);
-  }
-
-  function initZoom() {
-    select('svg')
-      .call(zoomBehavior);
-  }
-
-  function center() {
-	select('svg')
-		.transition()
-		.call(zoomBehavior.translateTo, 0, 0);
-  }
-
-  function updateNodes(n) {
-    node_data = n;
-  }
-
-  function updateLanes(l) {
-    lane_data = l;
-  }
-
-  function updateVehicles(v) {
-    vehicle_data = v;
-  }
-
-  function renderStaticMap() {
-    select('svg g')
-      .selectAll('line')
-      .data(lane_data, d => d.Lane_ID)
-      .join('line')
-      .attr('x1', d => convertX(d.Start_X))
-      .attr('y1', d => convertY(d.Start_Y))
-      .attr('x2', d => convertX(d.End_X))
-      .attr('y2', d => convertY(d.End_Y));
-    select('svg g')
-      .selectAll('circle')
-      .data(node_data, d => d.Node_ID)
-      .join('circle')
-      .attr('cx', d => convertX(d.X))
-      .attr('cy', d => convertY(d.Y))
-      .attr('r', 5)
-      .attr('fill', d => {
-        switch (d.AgentType) {
-            case 0:
-                return '#00000';
-                break;
-            case 1:
-                return '#FF0000';
-                break;
-            case 2:
-                return '#0000FF';
-                break;
-            default:
-                return '#00000'
-        }
-      });
-  }
-
-  function update() {
-    select('svg g')
-      .selectAll('image')
-      .data(vehicle_data, d => d.Vehicle_ID)
-      .join('image')
-      .attr('href','/static/bus-logo.png')
-      .attr('width', 30)
-      .attr('height', 30)
-      .attr('x', d => convertX(d.X)-15)
-      .attr('y', d => convertY(d.Y)-15)
-      .attr('opacity', d => d.Status);
-  }
-
-  function convertX(x) {
-    return x*10
-  }
-
-  function convertY(y) {
-    return y*-10
-  }
-
-  initZoom();
-  center();
-</script>
+<script src="/static/renderer.js"></script>
 
 <div class="output-log">
 <pre id="output"></pre>
@@ -146,6 +49,7 @@
 <script>
     var output = document.getElementById("output");
     var socket = new WebSocket("ws://localhost:8080/echo");
+    var renderer = new Renderer();
 
     socket.onopen = function () {
         output.innerHTML += "Status: Connected\n";
@@ -160,8 +64,8 @@
         const msg_data = msg.Data;
         switch (msg.Type) {
             case "vehicle_message":
-                updateVehicles(msg_data);
-                update();
+                renderer.updateVehicles(msg_data);
+                renderer.renderUpdate();
 
                 for (let i = 0; i < msg_data.length; i++) {
                     output.innerHTML += "Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n";
@@ -169,9 +73,9 @@
                 output.innerHTML += "\n";
                 break;
             case "map_setup_message":
-                updateNodes(msg_data.Nodes);
-                updateLanes(msg_data.Lanes);
-                renderStaticMap();
+                renderer.updateNodes(msg_data.Nodes);
+                renderer.updateLanes(msg_data.Lanes);
+                renderer.renderStaticMap();
                 break;
             default:
                 output.innerHTML += "Error: Unknown message received!\n";

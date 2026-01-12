@@ -1,0 +1,104 @@
+const { select, zoom } = d3;
+
+class Renderer {
+    constructor() {
+        this.vehicle_data = [];
+        this.node_data = [];
+        this.lane_data = [];
+
+        this.scaleFactor = 0.5;
+        this.xScaleOffset = 0;
+        this.yScaleOffset = 0;
+        let width = document.querySelector('.map').offsetWidth;
+        let height = document.querySelector('.map').offsetHeight;
+
+        this.zoomBehavior = zoom()
+            .scaleExtent([0.5, 10])
+            .on('zoom', this.handleZoom);
+
+        this.initZoom();
+        this.center();
+    }
+
+    handleZoom(e) {
+        select('svg g')
+        .attr('transform', e.transform);
+    }
+
+    initZoom() {
+        select('svg')
+        .call(this.zoomBehavior);
+    }
+
+    center() {
+        select('svg')
+        .transition()
+        .call(this.zoomBehavior.translateTo, 0, 0);
+    }
+
+    updateNodes(n) {
+        this.node_data = n;
+    }
+
+    updateLanes(l) {
+        this.lane_data = l;
+    }
+
+    updateVehicles(v) {
+        this.vehicle_data = v;
+    }
+
+    renderStaticMap() {
+        select('svg g')
+        .selectAll('line')
+        .data(this.lane_data, d => d.Lane_ID)
+        .join('line')
+        .attr('x1', d => this.getRenderX(d.Start_X))
+        .attr('y1', d => this.getRenderY(d.Start_Y))
+        .attr('x2', d => this.getRenderX(d.End_X))
+        .attr('y2', d => this.getRenderY(d.End_Y));
+        select('svg g')
+        .selectAll('circle')
+        .data(this.node_data, d => d.Node_ID)
+        .join('circle')
+        .attr('cx', d => this.getRenderX(d.X))
+        .attr('cy', d => this.getRenderY(d.Y))
+        .attr('r', 5)
+        .attr('fill', d => {
+        switch (d.AgentType) {
+            case 0:
+                return '#00000';
+                break;
+            case 1:
+                return '#FF0000';
+                break;
+            case 2:
+                return '#0000FF';
+                break;
+            default:
+                return '#00000'
+        }
+        });
+    }
+
+    renderUpdate() {
+        select('svg g')
+        .selectAll('image')
+        .data(this.vehicle_data, d => d.Vehicle_ID)
+        .join('image')
+        .attr('href','/static/images/bus-logo.png')
+        .attr('width', 30)
+        .attr('height', 30)
+        .attr('x', d => this.getRenderX(d.X)-15)
+        .attr('y', d => this.getRenderY(d.Y)-15)
+        .attr('opacity', d => d.Status);
+    }
+
+    getRenderX(world_x) {
+    return world_x*this.scaleFactor + this.xScaleOffset;
+    }
+
+    getRenderY(world_y) {
+    return world_y*-1*this.scaleFactor + this.yScaleOffset;
+    }
+}
