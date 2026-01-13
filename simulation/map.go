@@ -20,12 +20,12 @@ type RoadNodeID int
 type RoadNode struct {
 	id        RoadNodeID
 	pos       Position
-	lanes_out []int
-	lanes_in  []int
+	lanes_out []LaneID
+	lanes_in  []LaneID
 	agent     StaticAgent
 }
 
-func NewRoadNode(id RoadNodeID, pos Position, lanes_out []int, lanes_in []int, agent StaticAgent) RoadNode {
+func NewRoadNode(id RoadNodeID, pos Position, lanes_out []LaneID, lanes_in []LaneID, agent StaticAgent) RoadNode {
 	return RoadNode{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in, agent: agent}
 }
 

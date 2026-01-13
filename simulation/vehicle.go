@@ -1,11 +1,13 @@
 package simulation
 
 import (
+	"fmt"
 	"math"
+	"math/rand/v2"
 )
 
 type VehiclePosition struct {
-	lane_id  int
+	lane_id  LaneID
 	progress float64
 }
 
@@ -27,6 +29,7 @@ type Vehicle struct {
 	origin      RoadNodeID
 	speed       float64
 	acc         float64
+	path        *VehiclePath
 	lastFetch   SimTime
 }
 
@@ -44,7 +47,7 @@ func NewVehicleProp(max_speed float64, max_acc float64, minimum_gap_size float64
 	}
 }
 
-func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin RoadNodeID) *Vehicle {
+func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin RoadNodeID, path VehiclePath) *Vehicle {
 	res := Vehicle{
 		id:          id,
 		prop:        prop,
@@ -53,12 +56,13 @@ func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin R
 		origin:      origin,
 		speed:       0,
 		acc:         0,
+		path:        &path,
 		lastFetch:   -1,
 	}
 	return &res
 }
 
-func (a *Vehicle) CheckAndSetPosition(m *Map, lane_id int, progress float64) bool {
+func (a *Vehicle) CheckAndSetPosition(m *Map, lane_id LaneID, progress float64) bool {
 	//Returns false if lane is not free
 	desired_pos := VehiclePosition{
 		lane_id:  lane_id,
@@ -89,10 +93,10 @@ func ConvertVehiclePosToXY(m *Map, vehicle_pos VehiclePosition) Position {
 	return Position{x: from_coords.x + (diff_x * progress), y: from_coords.y + (diff_y * progress)}
 }
 
-type VehicleStatus int 
+type VehicleStatus int
 
 const (
-	NilVehicle VehicleStatus = 0
+	NilVehicle       VehicleStatus = 0
 	VehicleInTransit VehicleStatus = 1
 )
 
@@ -111,9 +115,26 @@ func (a *Vehicle) FindNextLanePosition(mapsim *Map) VehiclePosition {
 		return VehiclePosition{lane_id: a.pos.lane_id, progress: 1}
 		//This is reached if vehicle hits a deadend!
 	}
-
+	if len(*a.path.path_array) > a.path.curr_index && a.GetNextNodeVehiclePath() == intersection_node_id{
+		a.IncrementVehiclePathIndex()
+	}
 	//TODO: Run path finding algorithm here
-	new_lane_id := mapsim.nodes[intersection_node_id].lanes_out[0] //Temporary
+	new_lane_id := mapsim.nodes[intersection_node_id].lanes_out[0] //Temporary fallback for now
+	if len(*a.path.path_array) > a.path.curr_index {
+		next_node := a.GetNextNodeVehiclePath()
+		lane_candidates := []LaneID{}
+		for i:=0;i<len(lanes_out);i++ {
+			if mapsim.lanes[lanes_out[i]].to == next_node {
+				lane_candidates = append(lane_candidates, lanes_out[i])
+			}
+		}
+		if len(lane_candidates) <= 0 {
+			fmt.Println("Error: Could not find next road node for Vehicle on path!")
+			return VehiclePosition{lane_id: new_lane_id, progress: 0}
+		}
+		new_lane_id = lane_candidates[rand.IntN(len(lane_candidates))]
+	}
+
 	return VehiclePosition{lane_id: new_lane_id, progress: 0}
 }
 
@@ -151,7 +172,7 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	new_acc := a.prop.max_acc //TODO: Make max_acc scale inversely with current speed
 	if gap_ahead == 0 {
 		new_acc = a.prop.max_acc * -1
-	} else if gap_ahead < stopping_gap*2 && new_speed > 0{
+	} else if gap_ahead < stopping_gap*2 && new_speed > 0 {
 		new_acc = (-1 * math.Pow(new_speed, 2)) / (2 * gap_ahead)
 	}
 
@@ -226,4 +247,25 @@ func (a *Vehicle) isLaneFreeAtPos(m *Map, desired_pos VehiclePosition) bool {
 	lane := m.lanes[desired_pos.lane_id]
 	next_vehicle := lane.FindNextVehicleAheadFromPos(desired_pos)
 	return (next_vehicle == nil) || (CalculateDistance(ConvertVehiclePosToXY(m, desired_pos), next_vehicle.GetPosXY(m)) >= min_gap_size)
+}
+
+type VehiclePath struct {
+	path_array *[]RoadNodeID
+	curr_index int
+}
+
+func CreateVehiclePath(path_array []RoadNodeID) VehiclePath {
+	return VehiclePath{path_array: &path_array, curr_index: 0}
+}
+
+func (a *Vehicle) AddVehiclePath(path_array []RoadNodeID) {
+	*a.path.path_array = append(*a.path.path_array, path_array...)
+}
+
+func (a *Vehicle) IncrementVehiclePathIndex() {
+	a.path.curr_index++
+}
+
+func (a *Vehicle) GetNextNodeVehiclePath() RoadNodeID{
+	return (*a.path.path_array)[a.path.curr_index]
 }

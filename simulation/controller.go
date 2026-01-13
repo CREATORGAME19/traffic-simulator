@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-const MAX_VEHICLES = 100
+const MAX_VEHICLES = 2
 
-const NUM_RUNS = 500
+const NUM_RUNS = 200
 
 type VehicleLocation struct {
 	id     VehicleID
@@ -30,22 +30,22 @@ func RunController() {
 		NewRoadNode(
 			0,
 			NewPosition(-400, -400),
-			[]int{0},
-			[]int{},
+			[]LaneID{0},
+			[]LaneID{},
 			NewSpawnerAgent(0, 0.1),
 		),
 		NewRoadNode(
 			1,
 			NewPosition(0, 0),
-			[]int{1},
-			[]int{0},
+			[]LaneID{1},
+			[]LaneID{0},
 			NewIntersectionAgent(1),
 		),
 		NewRoadNode(
 			2,
 			NewPosition(600, 600),
-			[]int{},
-			[]int{1},
+			[]LaneID{},
+			[]LaneID{1},
 			NewSinkAgent(2),
 		),
 	}
@@ -102,8 +102,7 @@ func RunController() {
 			frontend_chan <- VehicleInfoDatagram(vehicle_locations[v])
 		}
 		sim_time++
-		time.Sleep(50*time.Millisecond)
-		println(sim_time)
+		time.Sleep(time.Second)
 	}
 
 	select {} //Temporary

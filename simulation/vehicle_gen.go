@@ -1,6 +1,6 @@
 package simulation
 
-func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID) *Vehicle {
+func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID, path []RoadNodeID) *Vehicle {
 	v := NewVehicle(
 			id,
 			VehicleProp{
@@ -10,6 +10,7 @@ func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID) *Veh
 			},
 			destination,
 			origin,
+			CreateVehiclePath(path),
 		)
 	return v
 }
