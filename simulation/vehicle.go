@@ -9,7 +9,7 @@ type VehiclePosition struct {
 	progress float64
 }
 
-func NewVehicleNodePos(node int) VehiclePosition {
+func NewVehicleNodePos(node RoadNodeID) VehiclePosition {
 	//Sets lane_id to be -1 when initially spawned in. We can add position later on after we check for free space on the lane.
 	return VehiclePosition{
 		lane_id:  -1,
@@ -17,12 +17,14 @@ func NewVehicleNodePos(node int) VehiclePosition {
 	}
 }
 
+type VehicleID int
+
 type Vehicle struct {
-	id          int
+	id          VehicleID
 	prop        VehicleProp
 	pos         VehiclePosition
-	destination int // Node id
-	origin      int // Node id
+	destination RoadNodeID
+	origin      RoadNodeID
 	speed       float64
 	acc         float64
 	lastFetch   SimTime
@@ -42,7 +44,7 @@ func NewVehicleProp(max_speed float64, max_acc float64, minimum_gap_size float64
 	}
 }
 
-func NewVehicle(id int, prop VehicleProp, destination int, origin int) *Vehicle {
+func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin RoadNodeID) *Vehicle {
 	res := Vehicle{
 		id:          id,
 		prop:        prop,
@@ -98,7 +100,7 @@ type VehicleFetchResult struct {
 	X          float64
 	Y          float64
 	Time       SimTime
-	Vehicle_ID int
+	Vehicle_ID VehicleID
 	Status     VehicleStatus
 }
 
@@ -170,7 +172,7 @@ func (a *Vehicle) CalculateDistanceTravelled(old_time SimTime, new_time SimTime)
 	return (float64(time_delta) * a.speed) + (0.5 * a.acc * math.Pow(float64(time_delta), 2))
 }
 
-func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel chan VehicleFetchResult, id int) {
+func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel chan VehicleFetchResult, id VehicleID) {
 	if a == nil {
 		vehicle_channel <- VehicleFetchResult{X: 0, Y: 0, Time: time, Vehicle_ID: id, Status: NilVehicle}
 		return

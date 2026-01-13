@@ -21,7 +21,7 @@ type Message struct {
 }
 
 type VehicleMessage struct {
-	Vehicle_ID int
+	Vehicle_ID VehicleID
 	X, Y float64
 	Status VehicleStatus
 	Time SimTime
@@ -33,13 +33,13 @@ type MapSetupMessage struct {
 }
 
 type MapNodeSetupMessage struct {
-	Node_ID int
+	Node_ID RoadNodeID
 	X, Y float64
 	AgentType StaticAgentType
 }
 
 type MapLaneSetupMessage struct {
-	Lane_ID int
+	Lane_ID LaneID
 	Start_X, Start_Y, End_X, End_Y float64
 }
 

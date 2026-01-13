@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-const MAX_VEHICLES = 50
+const MAX_VEHICLES = 100
 
-const NUM_RUNS = 200
+const NUM_RUNS = 500
 
 type VehicleLocation struct {
-	id     int
+	id     VehicleID
 	x      float64
 	y      float64
 	time   SimTime
@@ -32,7 +32,7 @@ func RunController() {
 			NewPosition(-400, -400),
 			[]int{0},
 			[]int{},
-			NewSpawnerAgent(0, 0.025),
+			NewSpawnerAgent(0, 0.1),
 		),
 		NewRoadNode(
 			1,
@@ -90,7 +90,7 @@ func RunController() {
 			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
 		}
 		for v := 0; v < MAX_VEHICLES; v++ {
-			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, v)
+			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, VehicleID(v))
 		}
 		wg.Wait()
 		for v := 0; v < MAX_VEHICLES; v++ {
@@ -103,6 +103,7 @@ func RunController() {
 		}
 		sim_time++
 		time.Sleep(50*time.Millisecond)
+		println(sim_time)
 	}
 
 	select {} //Temporary

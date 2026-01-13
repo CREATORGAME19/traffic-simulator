@@ -15,11 +15,11 @@ const (
 )
 
 type IntersectionAgent struct {
-	road_node_id int64
+	road_node_id RoadNodeID
 	lastFetch SimTime
 }
 
-func NewIntersectionAgent(node_id int64) *IntersectionAgent {
+func NewIntersectionAgent(node_id RoadNodeID) *IntersectionAgent {
 	return &IntersectionAgent{road_node_id: node_id, lastFetch: -1}
 }
 
@@ -36,13 +36,13 @@ func (a *IntersectionAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *V
 }
 
 type SpawnerAgent struct {
-	road_node_id int64
+	road_node_id RoadNodeID
 	lastFetch SimTime
 	spawn_rate float64
 	accumulator float64
 }
 
-func NewSpawnerAgent(node_id int64, spawn_rate float64) *SpawnerAgent{
+func NewSpawnerAgent(node_id RoadNodeID, spawn_rate float64) *SpawnerAgent{
 	return &SpawnerAgent{road_node_id: node_id, lastFetch: -1, spawn_rate: spawn_rate, accumulator: 0}
 }
 
@@ -62,8 +62,8 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 			//println("Vehicle limit reached!") //WARNING
 			return
 		}
-		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(int(mapsim.vehicles.next_empty),int(a.road_node_id),mapsim.FindADestinationNode())
-		mapsim.vehicles.next_empty = int64(FindNextEmptyVehicles(mapsim))
+		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(mapsim.vehicles.next_empty),a.road_node_id,mapsim.FindADestinationNode())
+		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
 		a.accumulator -= 1
 	}
 }
@@ -73,11 +73,11 @@ func (a *SpawnerAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicl
 }
 
 type SinkAgent struct {
-	road_node_id int64
+	road_node_id RoadNodeID
 	lastFetch SimTime
 }
 
-func NewSinkAgent(node_id int64) *SinkAgent{
+func NewSinkAgent(node_id RoadNodeID) *SinkAgent{
 	return &SinkAgent{road_node_id: node_id, lastFetch: -1}
 }
 
@@ -94,5 +94,5 @@ func (a *SinkAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) 
 	current_lane := vehicle.GetCurrentLane(mapsim)
 	current_lane.RemoveVehicleFromQueue(vehicle)
 	mapsim.vehicles.vehicle_array[vehicle.id] = nil
-	mapsim.vehicles.next_empty = min(int64(vehicle.id),mapsim.vehicles.next_empty)
+	mapsim.vehicles.next_empty = min(int(vehicle.id),mapsim.vehicles.next_empty)
 }

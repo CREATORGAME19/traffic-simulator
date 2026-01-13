@@ -1,6 +1,6 @@
 package simulation
 
-func CreateVehicle(id int, origin int, destination int) *Vehicle {
+func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID) *Vehicle {
 	v := NewVehicle(
 			id,
 			VehicleProp{

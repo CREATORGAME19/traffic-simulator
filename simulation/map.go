@@ -15,31 +15,35 @@ func NewPosition(x float64, y float64) Position {
 	return Position{x: x, y: y}
 }
 
+type RoadNodeID int
+
 type RoadNode struct {
-	id        int
+	id        RoadNodeID
 	pos       Position
 	lanes_out []int
 	lanes_in  []int
 	agent     StaticAgent
 }
 
-func NewRoadNode(id int, pos Position, lanes_out []int, lanes_in []int, agent StaticAgent) RoadNode {
+func NewRoadNode(id RoadNodeID, pos Position, lanes_out []int, lanes_in []int, agent StaticAgent) RoadNode {
 	return RoadNode{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in, agent: agent}
 }
 
+type LaneID int
+
 type Lane struct {
-	id            int
+	id            LaneID
 	start_pos     Position
 	end_pos       Position
-	from          int //Node id
-	to            int //Node id
+	from          RoadNodeID //Node id
+	to            RoadNodeID //Node id
 	distance      float64
 	vehicle_queue *VehicleLaneQueue
 
 	// more Lane Properties here (like speed limit)
 }
 
-func NewLane(id int, start_pos Position, end_pos Position, from int, to int) Lane {
+func NewLane(id LaneID, start_pos Position, end_pos Position, from RoadNodeID, to RoadNodeID) Lane {
 	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue()}
 }
 
@@ -51,7 +55,7 @@ func CalculateDistance(p1 Position, p2 Position) float64 {
 
 type VehicleDB struct {
 	vehicle_array []*Vehicle
-	next_empty    int64
+	next_empty    int
 }
 
 func FindNextEmptyVehicles(mapsim *Map) int {
@@ -85,14 +89,14 @@ func (m *Map) AddLane(l Lane) {
 	m.lanes = append(m.lanes, l)
 }
 
-func (m *Map) FindADestinationNode() int {
+func (m *Map) FindADestinationNode() RoadNodeID {
 	dest_nodes := []int{}
 	for n := 0; n < len(m.nodes); n++ {
 		if m.nodes[n].agent.Descriptor() == SinkAgentType {
 			dest_nodes = append(dest_nodes, n)
 		}
 	}
-	return dest_nodes[rand.IntN(len(dest_nodes))]
+	return RoadNodeID(dest_nodes[rand.IntN(len(dest_nodes))])
 }
 
 type VehicleLaneQueue struct {
