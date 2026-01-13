@@ -80,7 +80,11 @@
             default:
                 output.innerHTML += "Error: Unknown message received!\n";
         }
-        
+        socket.send(
+            JSON.stringify(
+                {Type: "ACK", Data: null}
+            )
+        )
     };
 </script>
 

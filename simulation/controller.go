@@ -70,6 +70,8 @@ func RunController() {
 	frontend_chan := make(chan VehicleInfoDatagram, MAX_VEHICLES)
 	go runFrontend(&wg, frontend_chan, mapsim, NUM_RUNS)
 
+	defer close(frontend_chan)
+
 	err := open_url("http://localhost:" + PORT)
 	if err != nil {
 		fmt.Println("Error opening browser!")
@@ -84,7 +86,7 @@ func RunController() {
 
 	var sim_time SimTime
 	sim_time = 0
-	minDuration := 500*time.Millisecond
+	minDuration := 1000*time.Millisecond //Defines time duration for each iteration
 
 	for i := 0; i < NUM_RUNS; i++ {
 		start := time.Now()

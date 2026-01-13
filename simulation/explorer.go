@@ -73,6 +73,10 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 			fmt.Println("Write Error:", err)
 			return
 		}
+		if err := WaitForWebACK(conn);err != nil {
+			fmt.Println("Read Error:", err)
+			return
+		}
 
 		run := 0
 		for current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
@@ -80,17 +84,12 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 				fmt.Println("Write Error:", err)
 				return
 			}
+			if err := WaitForWebACK(conn);err != nil {
+				fmt.Println("Read Error:", err)
+				return
+			}
 			run++
 		}
-
-		//go func() { //Reader loop(Websocket)
-		//	for {
-		//		if _,_,err := conn.ReadMessage(); err != nil {
-		//			fmt.Println("Read Error:", err)
-		//			return
-		//		}
-		//	}
-		//}()
 
 		for data := range channel { //Reader loop for controller channel
 			vehicle_fetch_history[current_run][data.id] = data
@@ -103,6 +102,10 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 
 				if err := SendWebVehicleMessage(conn, vehicle_fetch_history[current_run-1]); err != nil {
 					fmt.Println("Write Error:", err)
+					return
+				}
+				if err := WaitForWebACK(conn);err != nil {
+					fmt.Println("Read Error:", err)
 					return
 				}
 			}
@@ -137,4 +140,24 @@ func SendMapSetupMessage(conn *websocket.Conn, mapsim *Map) error {
 		msg.Lanes[l] = MapLaneSetupMessage{Lane_ID: mapsim.lanes[l].id, Start_X: mapsim.lanes[l].start_pos.x, Start_Y: mapsim.lanes[l].start_pos.y, End_X: mapsim.lanes[l].end_pos.x, End_Y: mapsim.lanes[l].end_pos.y}
 	}
 	return conn.WriteJSON(Message{Type:"map_setup_message", Data: msg})
+}
+
+func WaitForWebACK(conn *websocket.Conn) (error) {
+	var msg *Message
+	var err error
+	for msg == nil || msg.Type != "ACK" {
+		if msg,err = ReadWebMessage(conn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ReadWebMessage(conn *websocket.Conn) (*Message,error) {
+	var msg Message
+	err := conn.ReadJSON(&msg)
+	if err != nil {
+		return &Message{Type:"",Data:nil}, err
+	}
+	return &msg, nil
 }
