@@ -4,35 +4,7 @@
   <meta charset="UTF-8" />
   <title>Traffic Simulator</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <style>
-    body {
-      margin: 0;
-      background: #ffffff;
-      margin: auto;
-    }
-
-    .map {
-      border: 1px solid #444;
-      background: #ffffff;
-      min-height:60vh;
-      height:60vh;
-      margin: auto;
-    }
-
-    circle {
-      r: 3;
-    }
-
-    line {
-        stroke: #000000;
-        stroke-width: 2;
-    }
-
-    .output-log {
-        overflow-y: scroll;
-        height: 39vh;
-    }
-  </style>
+  <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
 
@@ -42,7 +14,6 @@
     </svg>
 </div>
 <script src="/static/renderer.js"></script>
-
 <div class="output-log">
 <pre id="output"></pre>
 </div>
@@ -68,9 +39,9 @@
                 renderer.renderUpdate();
 
                 for (let i = 0; i < msg_data.length; i++) {
-                    output.innerHTML += "Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n";
+                    console.log("Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n");
                 }
-                output.innerHTML += "\n";
+                console.log("\n");
                 break;
             case "map_setup_message":
                 renderer.updateNodes(msg_data.Nodes);
@@ -80,6 +51,7 @@
             default:
                 output.innerHTML += "Error: Unknown message received!\n";
         }
+
         socket.send(
             JSON.stringify(
                 {Type: "ACK", Data: null}
