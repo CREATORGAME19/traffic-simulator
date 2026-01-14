@@ -13,6 +13,5 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(map_config)
 	RunController(map_config, config_parameters)
 }
