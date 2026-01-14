@@ -33,12 +33,17 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	lanes := make([]Lane,len(map_config.Lanes))
 
 	for n:=0;n<len(nodes);n++{
+		agent,err := NewStaticAgent(map_config.Road_nodes[n].ID, map_config.Road_nodes[n].Agent, map_config.Road_nodes[n].AgentProp)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 		nodes[int(map_config.Road_nodes[n].ID)] = NewRoadNode(
 			map_config.Road_nodes[n].ID, // Should be equal to n
 			NewPosition(map_config.Road_nodes[n].Position.X, map_config.Road_nodes[n].Position.Y),
 			map_config.Road_nodes[n].Lanes_Out,
 			map_config.Road_nodes[n].Lanes_In,
-			NewStaticAgent(map_config.Road_nodes[n].ID, map_config.Road_nodes[n].Agent, map_config.Road_nodes[n].AgentProp),
+			agent,
 		)
 	}
 

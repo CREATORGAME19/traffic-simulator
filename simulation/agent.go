@@ -1,5 +1,7 @@
 package simulation
 
+import "fmt"
+
 type StaticAgent interface {
 	SpawnVehicles(mapsim *Map, time SimTime)
 	DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle)
@@ -14,24 +16,24 @@ const (
 	SinkAgentType         StaticAgentType = 2
 )
 
-func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop map[string]any) StaticAgent {
+func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop map[string]any) (StaticAgent,error) {
 	switch agent_type{
 		case IntersectionAgentType:
-			return NewIntersectionAgent(node_id, &IntersectionAgentParams{})
+			return NewIntersectionAgent(node_id, &IntersectionAgentParams{}),nil
 		case SpawnerAgentType:
 			param, ok := agent_prop["spawn_rate"]
 			if !ok {
-				panic("Invalid Static Agent Params!")
+				return nil, fmt.Errorf("Error: Spawner Agent Param expects 'spawn_rate' as a parameter. 'spawn_rate' not found as valid param!")
 			}
 			spawn_rate, ok := param.(float64)
 			if !ok {
-				panic("Invalid Static Agent Params!")
+				return nil, fmt.Errorf("Error: Spawner Agent Param expects 'spawn_rate' as a float64 parameter.")
 			}
-			return NewSpawnerAgent(node_id, &SpawnerAgentParams{spawn_rate: spawn_rate, accumulator: 0})
+			return NewSpawnerAgent(node_id, &SpawnerAgentParams{spawn_rate: spawn_rate, accumulator: 0}),nil
 		case SinkAgentType:
-			return NewSinkAgent(node_id, &SinkAgentParams{})
+			return NewSinkAgent(node_id, &SinkAgentParams{}),nil
 		default:
-			return NewIntersectionAgent(node_id, &IntersectionAgentParams{}) //Default to IntersectionAgent if StaticAgentType is unclear.
+			return nil, fmt.Errorf("Error: Unknown Static Agent Type!")
 	}
 }
 
