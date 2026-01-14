@@ -12,8 +12,24 @@ body {
     margin: auto;
 }
 
-circle {
-    r: 3;
+circle.intersection-node {
+    fill: #000000;
+    r: 8;
+}
+
+circle.spawner-node {
+    fill: #FF0000;
+    r: 5;
+}
+
+circle.sink-node {
+    fill: #0000FF;
+    r: 5;
+}
+
+circle.road-node {
+    fill: #000000;
+    r: 5;
 }
 
 line {

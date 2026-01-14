@@ -81,20 +81,19 @@ class Renderer {
         .join('circle')
         .attr('cx', d => this.getRenderX(d.X))
         .attr('cy', d => this.getRenderY(d.Y))
-        .attr('r', 5)
-        .attr('fill', d => {
+        .attr('class', d => {
         switch (d.AgentType) {
             case 0:
-                return '#00000';
+                return 'intersection-node';
                 break;
             case 1:
-                return '#FF0000';
+                return 'spawner-node';
                 break;
             case 2:
-                return '#0000FF';
+                return 'sink-node';
                 break;
             default:
-                return '#00000'
+                return 'road-node';
         }
         });
     }
