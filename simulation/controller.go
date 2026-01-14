@@ -102,6 +102,6 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 		elapsed := time.Since(start)
 		time.Sleep(minDuration - elapsed)
 	}
-
+	close(frontend_chan)
 	select {} //Temporary
 }
