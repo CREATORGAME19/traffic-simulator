@@ -43,8 +43,8 @@ type Lane struct {
 	// more Lane Properties here (like speed limit)
 }
 
-func NewLane(id LaneID, start_pos Position, end_pos Position, from RoadNodeID, to RoadNodeID) Lane {
-	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue()}
+func NewLane(id LaneID, start_pos Position, end_pos Position, from RoadNodeID, to RoadNodeID, config_parameters *ConfigParameters) Lane {
+	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue(config_parameters)}
 }
 
 func CalculateDistance(p1 Position, p2 Position) float64 {
@@ -59,25 +59,27 @@ type VehicleDB struct {
 }
 
 func FindNextEmptyVehicles(mapsim *Map) int {
-	for i := 0; i < MAX_VEHICLES; i++ {
+	for i := 0; i < mapsim.config_parameters.MAX_VEHICLES; i++ {
 		if mapsim.vehicles.vehicle_array[i] == nil {
 			return i
 		}
 	}
-	return MAX_VEHICLES
+	return mapsim.config_parameters.MAX_VEHICLES
 }
 
 type Map struct {
-	nodes    []RoadNode
-	lanes    []Lane
-	vehicles VehicleDB
+	nodes             []RoadNode
+	lanes             []Lane
+	vehicles          VehicleDB
+	config_parameters *ConfigParameters
 }
 
-func InitialiseMap(v []RoadNode, l []Lane) *Map {
+func InitialiseMap(v []RoadNode, l []Lane, config_parameters *ConfigParameters) *Map {
 	return &Map{
 		nodes:    v,
 		lanes:    l,
-		vehicles: VehicleDB{vehicle_array: make([]*Vehicle, MAX_VEHICLES), next_empty: 0},
+		vehicles: VehicleDB{vehicle_array: make([]*Vehicle, config_parameters.MAX_VEHICLES), next_empty: 0},
+		config_parameters: config_parameters,
 	}
 }
 
@@ -100,19 +102,19 @@ func (m *Map) FindADestinationNode() RoadNodeID {
 }
 
 type VehicleLaneQueue struct {
-	vehicles   []*Vehicle
+	vehicles []*Vehicle
 }
 
-func EmptyVehicleLaneQueue() *VehicleLaneQueue {
-	return &VehicleLaneQueue{vehicles: make([]*Vehicle, MAX_VEHICLES)}
+func EmptyVehicleLaneQueue(config_parameters *ConfigParameters) *VehicleLaneQueue {
+	return &VehicleLaneQueue{vehicles: make([]*Vehicle, config_parameters.MAX_VEHICLES)}
 }
 
-func (l *Lane) FindNextVehicleAhead(v *Vehicle, t SimTime) *Vehicle {
+func (l *Lane) FindNextVehicleAhead(m *Map, v *Vehicle, t SimTime) *Vehicle {
 	progress := v.pos.progress
 	closest_progress := 1.1
 	var closest_vehicle *Vehicle
 	closest_vehicle = nil
-	for i := 0; i < MAX_VEHICLES; i++ {
+	for i := 0; i < m.config_parameters.MAX_VEHICLES; i++ {
 		if (l.vehicle_queue.vehicles[i] != nil) && (progress == l.vehicle_queue.vehicles[i].pos.progress) {
 			//println("Collision:",v.id,i,t, progress) //Warning
 		}
@@ -124,12 +126,12 @@ func (l *Lane) FindNextVehicleAhead(v *Vehicle, t SimTime) *Vehicle {
 	return closest_vehicle
 }
 
-func (l *Lane) FindNextVehicleAheadFromPos(desired_pos VehiclePosition) *Vehicle {
+func (l *Lane) FindNextVehicleAheadFromPos(m *Map, desired_pos VehiclePosition) *Vehicle {
 	progress := desired_pos.progress
 	closest_progress := 1.1
 	var closest_vehicle *Vehicle
 	closest_vehicle = nil
-	for i := 0; i < MAX_VEHICLES; i++ {
+	for i := 0; i < m.config_parameters.MAX_VEHICLES; i++ {
 		vehicle_candidate := l.vehicle_queue.vehicles[i]
 		if (vehicle_candidate != nil) && (progress <= vehicle_candidate.pos.progress) && (vehicle_candidate.pos.progress < closest_progress) {
 			closest_progress = vehicle_candidate.pos.progress

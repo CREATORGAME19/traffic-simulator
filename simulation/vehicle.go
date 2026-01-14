@@ -163,7 +163,7 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	distance_travelled := a.CalculateDistanceTravelled(old_time, new_time)
 
 	gap_ahead := total_lane_distance - distance_travelled
-	next_vehicle := curr_lane.FindNextVehicleAhead(a, new_time)
+	next_vehicle := curr_lane.FindNextVehicleAhead(m, a, new_time)
 	stopping_gap := max(0.5*a.prop.minimum_gap_size, 2*new_speed) //2s stop gap
 	if next_vehicle != nil {
 		gap_ahead = CalculateDistance(a.GetPosXY(m), next_vehicle.GetPosXY(m)) + next_vehicle.CalculateDistanceTravelled(old_time, new_time) - stopping_gap
@@ -245,7 +245,7 @@ func (a *Vehicle) hasReachedDestination(m *Map) bool {
 func (a *Vehicle) isLaneFreeAtPos(m *Map, desired_pos VehiclePosition) bool {
 	min_gap_size := a.prop.minimum_gap_size
 	lane := m.lanes[desired_pos.lane_id]
-	next_vehicle := lane.FindNextVehicleAheadFromPos(desired_pos)
+	next_vehicle := lane.FindNextVehicleAheadFromPos(m, desired_pos)
 	return (next_vehicle == nil) || (CalculateDistance(ConvertVehiclePosToXY(m, desired_pos), next_vehicle.GetPosXY(m)) >= min_gap_size)
 }
 

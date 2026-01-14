@@ -45,10 +45,10 @@ type MapLaneSetupMessage struct {
 
 var reader sync.WaitGroup
 
-func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *Map, runs int) {
-	vehicle_fetch_history := make([][]VehicleInfoDatagram, runs)
-	for i := 0; i < runs; i++ {
-		vehicle_fetch_history[i] = make([]VehicleInfoDatagram, MAX_VEHICLES)
+func runFrontend(config_parameters *ConfigParameters, wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *Map) {
+	vehicle_fetch_history := make([][]VehicleInfoDatagram, config_parameters.NUM_RUNS)
+	for i := 0; i < config_parameters.NUM_RUNS; i++ {
+		vehicle_fetch_history[i] = make([]VehicleInfoDatagram, config_parameters.MAX_VEHICLES)
 	}
 
 	current_run := 0
@@ -96,8 +96,8 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 			vehicles_seen++			
 			wg.Done()
 
-			if vehicles_seen >= MAX_VEHICLES {
-				vehicles_seen -= MAX_VEHICLES
+			if vehicles_seen >= config_parameters.MAX_VEHICLES {
+				vehicles_seen -= config_parameters.MAX_VEHICLES
 				current_run++
 
 				if err := SendWebVehicleMessage(conn, vehicle_fetch_history[current_run-1]); err != nil {

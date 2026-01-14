@@ -1,0 +1,70 @@
+{
+    "road_nodes": [
+        {
+            "ID": 0,
+            "Position": {
+                "x": -400,
+                "y": -400
+            },
+            "Lanes_Out": [0],
+            "Lanes_In": [],
+            "Agent": 1,
+            "AgentProp": {
+                "spawn_rate": 1
+            }
+        },
+        {
+            "ID": 1,
+            "Position": {
+                "x": 0,
+                "y": 0
+            },
+            "Lanes_Out": [1],
+            "Lanes_In": [0],
+            "Agent": 0,
+            "AgentProp": {
+            }
+        },
+        {
+            "ID": 2,
+            "Position": {
+                "x": 600,
+                "y": 600
+            },
+            "Lanes_Out": [],
+            "Lanes_In": [1],
+            "Agent": 2,
+            "AgentProp": {
+            }
+        }
+    ],
+
+    "lanes": [
+        {
+            "ID": 0,
+            "Start_Position": {
+                "x": -400,
+                "y": -400
+            },
+            "End_Position": {
+                "x": 0,
+                "y": 0
+            },
+            "From_Node": 0,
+            "To_Node": 1
+        },
+        {
+            "ID": 1,
+            "Start_Position": {
+                "x": 0,
+                "y": 0
+            },
+            "End_Position": {
+                "x": 600,
+                "y": 600
+            },
+            "From_Node": 1,
+            "To_Node": 2
+        }
+    ]
+}
