@@ -4,7 +4,7 @@ func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID, path
 	v := NewVehicle(
 			id,
 			VehicleProp{
-				max_speed:        0.5,
+				max_speed:        31.29,
 				max_acc:          1,
 				minimum_gap_size: 3,
 			},

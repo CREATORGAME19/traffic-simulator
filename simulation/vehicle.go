@@ -169,10 +169,10 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 		gap_ahead = CalculateDistance(a.GetPosXY(m), next_vehicle.GetPosXY(m)) + next_vehicle.CalculateDistanceTravelled(old_time, new_time) - stopping_gap
 	}
 
-	new_acc := a.prop.max_acc //TODO: Make max_acc scale inversely with current speed
+	new_acc := ((a.prop.max_speed-new_speed)/a.prop.max_speed)*a.prop.max_acc
 	if gap_ahead == 0 {
 		new_acc = a.prop.max_acc * -1
-	} else if gap_ahead < stopping_gap*2 && new_speed > 0 {
+	} else if gap_ahead < stopping_gap*3 && new_speed > 0 {
 		new_acc = (-1 * math.Pow(new_speed, 2)) / (2 * gap_ahead)
 	}
 
