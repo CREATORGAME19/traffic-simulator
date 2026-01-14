@@ -40,6 +40,7 @@ class Renderer {
         select('#vehicle-layer')
         .attr('transform', e.transform);
         this.currentTransform = e.transform;
+        this.vehicleZoomUpdate();
     }
 
     initZoom() {
@@ -110,6 +111,18 @@ class Renderer {
         .attr('x', d => this.getRenderX(d.X)-(15/t.k))
         .attr('y', d => this.getRenderY(d.Y)-(15/t.k))
         .attr('opacity', d => d.Status);
+    }
+
+    vehicleZoomUpdate() {
+        const t = this.currentTransform;
+        select('#vehicle-layer')
+        .selectAll('image')
+        .data(this.vehicle_data, d => d.Vehicle_ID)
+        .join('image')
+        .attr('x', d => this.getRenderX(d.X)-(15/t.k))
+        .attr('y', d => this.getRenderY(d.Y)-(15/t.k))
+        .attr('width', 30/t.k)
+        .attr('height', 30/t.k);
     }
 
     getRenderX(world_x) {
