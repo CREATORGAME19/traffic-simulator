@@ -95,6 +95,18 @@ class Renderer {
             default:
                 return 'road-node';
         }
+        })
+        .attr('r', d => {
+            switch (d.AgentType) {
+                case 0:
+                    return 8;
+                case 1:
+                    return 5;
+                case 2:
+                    return 5;
+                default:
+                    return 5;
+            }
         });
     }
 
