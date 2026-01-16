@@ -13,8 +13,8 @@ body {
 }
 
 circle.intersection-node {
-    fill: #000000;
-    r: 8;
+    stroke: #000000;
+    fill: rgba(0, 0, 0, 0);
 }
 
 circle.spawner-node {

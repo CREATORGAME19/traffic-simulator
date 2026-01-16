@@ -9,8 +9,9 @@ import (
 )
 
 const DEFAULT_MAX_VEHICLES = 10
-const DEFAULT_MAX_RUNS = 200
+const DEFAULT_MAX_RUNS = 2000
 const DEFAULT_INCREMENT_VEHICLE_PATH = 5
+const DEFAULT_SIM_RATE = 2.0
 
 type MapConfig struct {
 	Road_nodes []RoadNodeConfig `json:"road_nodes"`
@@ -21,6 +22,7 @@ type ConfigParameters struct {
 	MAX_VEHICLES           int
 	NUM_RUNS               int
 	INCREMENT_VEHICLE_PATH int
+	SIM_RATE               float64
 }
 
 type RoadNodeConfig struct {
@@ -28,6 +30,7 @@ type RoadNodeConfig struct {
 	Position  PositionConfig  `json:"Position"`
 	Lanes_Out []LaneID        `json:"Lanes_Out"`
 	Lanes_In  []LaneID        `json:"Lanes_In"`
+	Radius    float64         `json:"Radius"`
 	Agent     StaticAgentType `json:"Agent"`
 	AgentProp map[string]any  `json:"AgentProp"`
 }
@@ -54,7 +57,7 @@ func ParseSimArgs(args []string) (*MapConfig, *ConfigParameters, error) {
 		return nil, nil, fmt.Errorf("Error: No path to config file is provided!")
 	}
 	path := args[1]
-	config_parameters = &ConfigParameters{MAX_VEHICLES: DEFAULT_MAX_VEHICLES, NUM_RUNS: DEFAULT_MAX_RUNS, INCREMENT_VEHICLE_PATH: DEFAULT_INCREMENT_VEHICLE_PATH}
+	config_parameters = &ConfigParameters{MAX_VEHICLES: DEFAULT_MAX_VEHICLES, NUM_RUNS: DEFAULT_MAX_RUNS, INCREMENT_VEHICLE_PATH: DEFAULT_INCREMENT_VEHICLE_PATH, SIM_RATE: DEFAULT_SIM_RATE}
 	for i := 2; i < len(args); i++ {
 		if err := ParseExtraArg(args[i], config_parameters); err != nil {
 			return nil, nil, err
@@ -95,6 +98,11 @@ func ParseExtraArg(arg string, config_parameters *ConfigParameters) error {
 		config_parameters.NUM_RUNS = value
 	case "INCREMENT_VEHICLE_PATH":
 		config_parameters.INCREMENT_VEHICLE_PATH = value
+	case "SIM_RATE":
+		if value <= 0 {
+			return fmt.Errorf("Invalid SIM_RATE must be >0!")
+		}
+		config_parameters.SIM_RATE = float64(value)
 	default:
 		return fmt.Errorf("Unrecognised Config Parameter " + key + "!")
 	}

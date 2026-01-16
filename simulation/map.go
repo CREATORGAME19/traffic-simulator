@@ -22,11 +22,12 @@ type RoadNode struct {
 	pos       Position
 	lanes_out []LaneID
 	lanes_in  []LaneID
+	radius    float64
 	agent     StaticAgent
 }
 
-func NewRoadNode(id RoadNodeID, pos Position, lanes_out []LaneID, lanes_in []LaneID, agent StaticAgent) RoadNode {
-	return RoadNode{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in, agent: agent}
+func NewRoadNode(id RoadNodeID, pos Position, lanes_out []LaneID, lanes_in []LaneID, radius float64, agent StaticAgent) RoadNode {
+	return RoadNode{id: id, pos: pos, lanes_out: lanes_out, lanes_in: lanes_in, radius: radius, agent: agent}
 }
 
 type LaneID int
@@ -35,8 +36,8 @@ type Lane struct {
 	id            LaneID
 	start_pos     Position
 	end_pos       Position
-	from          RoadNodeID //Node id
-	to            RoadNodeID //Node id
+	from_node     RoadNodeID
+	to_node       RoadNodeID
 	distance      float64
 	vehicle_queue *VehicleLaneQueue
 
@@ -44,7 +45,7 @@ type Lane struct {
 }
 
 func NewLane(id LaneID, start_pos Position, end_pos Position, from RoadNodeID, to RoadNodeID, config_parameters *ConfigParameters) Lane {
-	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from: from, to: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue(config_parameters)}
+	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from_node: from, to_node: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue(config_parameters)}
 }
 
 func CalculateDistance(p1 Position, p2 Position) float64 {
@@ -76,9 +77,9 @@ type Map struct {
 
 func InitialiseMap(v []RoadNode, l []Lane, config_parameters *ConfigParameters) *Map {
 	return &Map{
-		nodes:    v,
-		lanes:    l,
-		vehicles: VehicleDB{vehicle_array: make([]*Vehicle, config_parameters.MAX_VEHICLES), next_empty: 0},
+		nodes:             v,
+		lanes:             l,
+		vehicles:          VehicleDB{vehicle_array: make([]*Vehicle, config_parameters.MAX_VEHICLES), next_empty: 0},
 		config_parameters: config_parameters,
 	}
 }
@@ -109,7 +110,7 @@ func EmptyVehicleLaneQueue(config_parameters *ConfigParameters) *VehicleLaneQueu
 	return &VehicleLaneQueue{vehicles: make([]*Vehicle, config_parameters.MAX_VEHICLES)}
 }
 
-func (l *Lane) FindNextVehicleAhead(m *Map, v *Vehicle, t SimTime) *Vehicle {
+func (l *Lane) FindNextVehicleAhead(m *Map, v *Vehicle) *Vehicle {
 	progress := v.pos.progress
 	closest_progress := 1.1
 	var closest_vehicle *Vehicle

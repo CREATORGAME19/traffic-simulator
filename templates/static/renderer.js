@@ -99,7 +99,7 @@ class Renderer {
         .attr('r', d => {
             switch (d.AgentType) {
                 case 0:
-                    return 8;
+                    return 16;
                 case 1:
                     return 5;
                 case 2:

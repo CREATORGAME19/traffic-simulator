@@ -29,7 +29,7 @@ func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop m
 			if !ok {
 				return nil, fmt.Errorf("Error: Spawner Agent Param expects 'spawn_rate' as a float64 parameter.")
 			}
-			return NewSpawnerAgent(node_id, &SpawnerAgentParams{spawn_rate: spawn_rate, accumulator: 0}),nil
+			return NewSpawnerAgent(node_id, &SpawnerAgentParams{spawn_rate: spawn_rate, lastSpawnTime: 0}),nil
 		case SinkAgentType:
 			return NewSinkAgent(node_id, &SinkAgentParams{}),nil
 		default:
@@ -70,7 +70,7 @@ type SpawnerAgent struct {
 
 type SpawnerAgentParams struct {
 	spawn_rate  float64
-	accumulator float64
+	lastSpawnTime SimTime
 }
 
 func NewSpawnerAgent(node_id RoadNodeID, params *SpawnerAgentParams) *SpawnerAgent {
@@ -82,21 +82,22 @@ func (a *SpawnerAgent) Descriptor() StaticAgentType {
 }
 
 func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
-	a.lastFetch = time
 	if mapsim.vehicles.next_empty >= mapsim.config_parameters.MAX_VEHICLES {
 		//println("Vehicle limit reached!") //WARNING
 		return
 	}
-	a.params.accumulator += a.params.spawn_rate
-	for a.params.accumulator >= 1.0 {
+
+	if (time-a.params.lastSpawnTime) >= SimTime(1/a.params.spawn_rate)  {
 		if mapsim.vehicles.next_empty >= mapsim.config_parameters.MAX_VEHICLES {
 			//println("Vehicle limit reached!") //WARNING
 			return
 		}
 		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(mapsim.vehicles.next_empty), a.road_node_id, mapsim.FindADestinationNode())
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
-		a.params.accumulator -= 1
+		a.params.lastSpawnTime = time
 	}
+	a.lastFetch = time
+	
 }
 
 func (a *SpawnerAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) { //Only Sink nodes destroy vehicles
@@ -126,9 +127,9 @@ func (a *SinkAgent) SpawnVehicles(mapsim *Map, time SimTime) { //Only Spawner no
 }
 
 func (a *SinkAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) {
-	a.lastFetch = time
 	current_lane := vehicle.GetCurrentLane(mapsim)
 	current_lane.RemoveVehicleFromQueue(vehicle)
 	mapsim.vehicles.vehicle_array[vehicle.id] = nil
 	mapsim.vehicles.next_empty = min(int(vehicle.id), mapsim.vehicles.next_empty)
+	a.lastFetch = time
 }

@@ -8,10 +8,9 @@
             },
             "Lanes_Out": [0],
             "Lanes_In": [],
-            "Radius": 5,
             "Agent": 1,
             "AgentProp": {
-                "spawn_rate": 1
+                "spawn_rate": 0.2
             }
         },
         {
@@ -21,8 +20,7 @@
                 "y": 0
             },
             "Lanes_Out": [1, 2],
-            "Lanes_In": [0],
-            "Radius": 16,
+            "Lanes_In": [0,3],
             "Agent": 0,
             "AgentProp": {
             }
@@ -35,7 +33,6 @@
             },
             "Lanes_Out": [],
             "Lanes_In": [1],
-            "Radius": 5,
             "Agent": 2,
             "AgentProp": {
             }
@@ -48,9 +45,21 @@
             },
             "Lanes_Out": [],
             "Lanes_In": [2],
-            "Radius": 5,
             "Agent": 2,
             "AgentProp": {
+            }
+        },
+        {
+            "ID": 4,
+            "Position": {
+                "x": -388,
+                "y": -412
+            },
+            "Lanes_Out": [3],
+            "Lanes_In": [],
+            "Agent": 1,
+            "AgentProp": {
+                "spawn_rate": 0.2
             }
         }
     ],
@@ -85,8 +94,8 @@
         {
             "ID": 2,
             "Start_Position": {
-                "x": 0,
-                "y": 0
+                "x": 16,
+                "y": -16
             },
             "End_Position": {
                 "x": 400,
@@ -94,6 +103,19 @@
             },
             "From_Node": 1,
             "To_Node": 3
+        },
+        {
+            "ID": 3,
+            "Start_Position": {
+                "x": -388,
+                "y": -412
+            },
+            "End_Position": {
+                "x": 12,
+                "y": -12
+            },
+            "From_Node": 4,
+            "To_Node": 1
         }
     ]
 }

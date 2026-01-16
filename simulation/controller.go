@@ -6,12 +6,6 @@ import (
 	"time"
 )
 
-/*
-const MAX_VEHICLES = 100
-
-const NUM_RUNS = 200
-*/
-
 type VehicleLocation struct {
 	id     VehicleID
 	x      float64
@@ -22,7 +16,7 @@ type VehicleLocation struct {
 
 type VehicleInfoDatagram VehicleLocation
 
-type SimTime int64
+type SimTime float64
 
 func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	var wg sync.WaitGroup
@@ -43,6 +37,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 			NewPosition(map_config.Road_nodes[n].Position.X, map_config.Road_nodes[n].Position.Y),
 			map_config.Road_nodes[n].Lanes_Out,
 			map_config.Road_nodes[n].Lanes_In,
+			map_config.Road_nodes[n].Radius,
 			agent,
 		)
 	}
@@ -79,8 +74,9 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 
 	var sim_time SimTime
 	sim_time = 0
-	minDuration := 1000*time.Millisecond //Defines time duration for each iteration
-
+	sim_time_step := 0.1 //seconds
+	var sim_rate float64 = config_parameters.SIM_RATE
+	minDuration := time.Duration((sim_time_step/sim_rate)*1000000000) //Defines time duration for each iteration
 	for i := 0; i < config_parameters.NUM_RUNS; i++ {
 		start := time.Now()
 		for a := 0; a < len(mapsim.nodes); a++ { //Trigger spawners each time
@@ -98,7 +94,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			frontend_chan <- VehicleInfoDatagram(vehicle_locations[v])
 		}
-		sim_time++
+		sim_time += SimTime(sim_time_step)
 		elapsed := time.Since(start)
 		time.Sleep(minDuration - elapsed)
 	}
