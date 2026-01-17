@@ -221,8 +221,8 @@ func (a *Vehicle) CalculateAcceleration(gap_ahead float64, next_vehicle *Vehicle
 		new_acc = 0
 	} else if gap_ahead < 1.5*stopping_gap {
 		new_acc = (-math.Pow(a.speed,2))/(2*gap_ahead)
-		if a.speed < 0.1 {
-			new_acc = max(new_acc,(0.1-a.speed)/float64(time_delta))
+		if a.speed < 2 {
+			new_acc = max(new_acc,(2-a.speed)/float64(time_delta))
 		}
 	}
 	return new_acc

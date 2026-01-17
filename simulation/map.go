@@ -104,10 +104,11 @@ func (m *Map) FindADestinationNode() RoadNodeID {
 
 type VehicleLaneQueue struct {
 	vehicles []*Vehicle
+	usage int64
 }
 
 func EmptyVehicleLaneQueue(config_parameters *ConfigParameters) *VehicleLaneQueue {
-	return &VehicleLaneQueue{vehicles: make([]*Vehicle, config_parameters.MAX_VEHICLES)}
+	return &VehicleLaneQueue{vehicles: make([]*Vehicle, config_parameters.MAX_VEHICLES), usage: 0}
 }
 
 func (l *Lane) FindNextVehicleAhead(m *Map, v *Vehicle) *Vehicle {
@@ -144,6 +145,7 @@ func (l *Lane) FindNextVehicleAheadFromPos(m *Map, desired_pos VehiclePosition) 
 
 func (l *Lane) RemoveVehicleFromQueue(v *Vehicle) {
 	l.vehicle_queue.vehicles[v.id] = nil
+	l.vehicle_queue.usage -= 1
 }
 
 func (l *Lane) AddVehicleToQueue(v *Vehicle) {
@@ -152,4 +154,5 @@ func (l *Lane) AddVehicleToQueue(v *Vehicle) {
 		return
 	}
 	l.vehicle_queue.vehicles[v.id] = v
+	l.vehicle_queue.usage++
 }
