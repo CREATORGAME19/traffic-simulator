@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"math/rand/v2"
 )
 
 type VehicleLocation struct {
@@ -79,7 +80,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	minDuration := time.Duration((sim_time_step/sim_rate)*1000000000) //Defines time duration for each iteration
 	for i := 0; i < config_parameters.NUM_RUNS; i++ {
 		start := time.Now()
-		for a := 0; a < len(mapsim.nodes); a++ { //Trigger spawners each time
+		for _,a := range rand.Perm(len(mapsim.nodes)) { //Trigger spawners each time
 			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
