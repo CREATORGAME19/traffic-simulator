@@ -1,15 +1,12 @@
 body {
     margin: 0;
     background: #ffffff;
-    margin: auto;
 }
 
 .map {
     border: 1px solid #444;
     background: #ffffff;
-    min-height:60vh;
-    height:60vh;
-    margin: auto;
+    height:99.28vh;
 }
 
 circle.intersection-node {
@@ -32,9 +29,4 @@ circle.road-node {
 line {
     stroke: #000000;
     stroke-width: 2;
-}
-
-.output-log {
-    overflow-y: scroll;
-    height: 39vh;
 }

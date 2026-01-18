@@ -7,27 +7,22 @@
   <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
-
 <div class="map" width="99.7%" height="100%">
     <svg width="100%" height="100%">
     <g></g>
     </svg>
 </div>
 <script src="/static/renderer.js"></script>
-<div class="output-log">
-<pre id="output"></pre>
-</div>
 <script>
-    var output = document.getElementById("output");
     var socket = new WebSocket("ws://localhost:8080/echo");
     var renderer = new Renderer();
 
     socket.onopen = function () {
-        output.innerHTML += "Status: Connected\n";
+        console.log("Status: Connected");
     };
 
     socket.onclose = function () {
-        output.innerHTML += "Status: Disconnected\n";
+        console.log("Status: Disconnected");
     }
 
     socket.onmessage = function (e) {
@@ -36,7 +31,8 @@
         switch (msg.Type) {
             case "vehicle_message":
                 renderer.updateVehicles(msg_data);
-                renderer.renderUpdate();
+                renderer.renderControls(msg_data[0].Time);
+                renderer.renderVehicleUpdate();
 
                 for (let i = 0; i < msg_data.length; i++) {
                     console.log("Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n");

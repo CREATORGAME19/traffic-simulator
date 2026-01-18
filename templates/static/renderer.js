@@ -1,4 +1,5 @@
 const { select, zoom, zoomIdentity } = d3;
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 class Renderer {
     constructor() {
@@ -32,6 +33,9 @@ class Renderer {
 
         svg.append('g')
             .attr('id', 'vehicle-layer');
+
+        svg.append('g')
+            .attr('id', 'controls-layer');
     }
 
     handleZoom(e) {
@@ -40,7 +44,7 @@ class Renderer {
         select('#vehicle-layer')
         .attr('transform', e.transform);
         this.currentTransform = e.transform;
-        this.vehicleZoomUpdate();
+        this.renderVehicleUpdate();
     }
 
     initZoom() {
@@ -66,74 +70,93 @@ class Renderer {
         this.vehicle_data = v;
     }
 
-    renderStaticMap() {
-        select('#map-layer')
-        .selectAll('line')
-        .data(this.lane_data, d => d.Lane_ID)
-        .join('line')
-        .attr('x1', d => this.getRenderX(d.Start_X))
-        .attr('y1', d => this.getRenderY(d.Start_Y))
-        .attr('x2', d => this.getRenderX(d.End_X))
-        .attr('y2', d => this.getRenderY(d.End_Y));
-        select('#map-layer')
-        .selectAll('circle')
-        .data(this.node_data, d => d.Node_ID)
-        .join('circle')
-        .attr('cx', d => this.getRenderX(d.X))
-        .attr('cy', d => this.getRenderY(d.Y))
-        .attr('class', d => {
-        switch (d.AgentType) {
-            case 0:
-                return 'intersection-node';
-                break;
-            case 1:
-                return 'spawner-node';
-                break;
-            case 2:
-                return 'sink-node';
-                break;
-            default:
-                return 'road-node';
+    formatTime(seconds) { //Input in seconds
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+
+        const pad = n => String(n).padStart(2, '0');
+
+        return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+    }
+
+    renderControls(curr_sim_time) {
+        var time_panel = document.getElementById("time_indicator");
+        if (time_panel == null) {
+            var time_panel = document.createElementNS(SVG_NS, "text");
+            time_panel.setAttribute("x", 10);
+            time_panel.setAttribute("y", 20);
+            time_panel.setAttribute("font-size", 14);
+            time_panel.setAttribute("id", "time_indicator");
+
+            document.getElementById("controls-layer").appendChild(time_panel);
         }
-        })
-        .attr('r', d => {
-            switch (d.AgentType) {
-                case 0:
-                    return 16;
-                case 1:
-                    return 5;
-                case 2:
-                    return 5;
-                default:
-                    return 5;
+        time_panel.textContent = 'Time: '+this.formatTime(curr_sim_time);
+    }
+
+    renderStaticMap() {
+        for (let i=0;i<this.lane_data.length;i++) {
+            var lane = document.getElementById("lane_"+String(i));
+            if (lane == null) {
+                var lane = document.createElementNS(SVG_NS, "line");
+                lane.setAttribute("id", "lane_"+String(i));
+                lane.setAttribute("x1", this.getRenderX(this.lane_data[i].Start_X));
+                lane.setAttribute("y1", this.getRenderY(this.lane_data[i].Start_Y));
+                lane.setAttribute("x2", this.getRenderX(this.lane_data[i].End_X));
+                lane.setAttribute("y2", this.getRenderY(this.lane_data[i].End_Y));
+
+                document.getElementById("map-layer").appendChild(lane);
             }
-        });
+        }
+        for (let i=0;i<this.node_data.length;i++) {
+            var node = document.getElementById("node_"+String(i));
+            if (node == null) {
+                var node = document.createElementNS(SVG_NS, "circle");
+                node.setAttribute("id", "node_"+String(i));
+                node.setAttribute("cx", this.getRenderX(this.node_data[i].X));
+                node.setAttribute("cy", this.getRenderY(this.node_data[i].Y));
+                switch (this.node_data[i].AgentType) {
+                    case 0:
+                        var class_name = 'intersection-node';
+                        var radius = 16;
+                        break;
+                    case 1:
+                        var class_name = 'spawner-node';
+                        var radius = 5;
+                        break;
+                    case 2:
+                        var class_name = 'sink-node';
+                        var radius = 5;
+                        break;
+                    default:
+                        var class_name = 'road-node';
+                        var radius = 5;
+                }
+                node.setAttribute("class", class_name);
+                node.setAttribute("r",radius);
+
+                document.getElementById("map-layer").appendChild(node);
+            }
+        }
     }
 
-    renderUpdate() {
+    renderVehicleUpdate() {
         const t = this.currentTransform;
-        select('#vehicle-layer')
-        .selectAll('image')
-        .data(this.vehicle_data, d => d.Vehicle_ID)
-        .join('image')
-        .attr('href','/static/images/bus-logo.png')
-        .attr('width', 30/t.k)
-        .attr('height', 30/t.k)
-        .attr('x', d => this.getRenderX(d.X)-(15/t.k))
-        .attr('y', d => this.getRenderY(d.Y)-(15/t.k))
-        .attr('opacity', d => d.Status);
-    }
+        for (let i=0;i<this.vehicle_data.length;i++) {
+            var vehicle = document.getElementById("vehicle_"+String(i));
+            if (vehicle == null) {
+                var vehicle = document.createElementNS(SVG_NS, "image");
+                vehicle.setAttribute("id", "vehicle_"+String(i));
+                vehicle.setAttribute("href", '/static/images/bus-logo.png');
 
-    vehicleZoomUpdate() {
-        const t = this.currentTransform;
-        select('#vehicle-layer')
-        .selectAll('image')
-        .data(this.vehicle_data, d => d.Vehicle_ID)
-        .join('image')
-        .attr('x', d => this.getRenderX(d.X)-(15/t.k))
-        .attr('y', d => this.getRenderY(d.Y)-(15/t.k))
-        .attr('width', 30/t.k)
-        .attr('height', 30/t.k);
+                document.getElementById("vehicle-layer").appendChild(vehicle);
+            }
+            vehicle.setAttribute("x", this.getRenderX(this.vehicle_data[i].X)-(15/t.k));
+            vehicle.setAttribute("y", this.getRenderY(this.vehicle_data[i].Y)-(15/t.k));
+            vehicle.setAttribute("width", 30/t.k);
+            vehicle.setAttribute("height", 30/t.k);
+            vehicle.setAttribute("opacity", this.vehicle_data[i].Status);
+        }
     }
 
     getRenderX(world_x) {
