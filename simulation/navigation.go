@@ -92,7 +92,7 @@ func CalculateCostHeuristicFunction(mapsim *Map, node_id RoadNodeID, end_node_id
 func (a *Vehicle) reconstructPath(mapsim *Map,came_from []*[]RoadNodeID, start_node_id RoadNodeID, end_node_id RoadNodeID) {
 	path := []RoadNodeID{end_node_id}
 	current := came_from[end_node_id]
-	for !(Has(current, start_node_id)) {
+	for !(ContainsRoadNodeID(current, start_node_id)) {
 		chosen_node := (*current)[rand.IntN(len(*current))]
 		path = append([]RoadNodeID{chosen_node},path...)
 		current = came_from[chosen_node]
@@ -104,7 +104,7 @@ func (a *Vehicle) reconstructPath(mapsim *Map,came_from []*[]RoadNodeID, start_n
 	}
 }
 
-func Has(current *[]RoadNodeID, node_id RoadNodeID) bool {
+func ContainsRoadNodeID(current *[]RoadNodeID, node_id RoadNodeID) bool {
 	for n := range *current {
 		if (*current)[n] == node_id {
 			return true

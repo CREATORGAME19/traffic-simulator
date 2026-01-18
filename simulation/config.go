@@ -87,17 +87,17 @@ func ParseExtraArg(arg string, config_parameters *ConfigParameters) error {
 		return fmt.Errorf("Invalid Config Parameter!")
 	}
 	key := res[0]
-	value, err := strconv.Atoi(res[1])
+	value, err := strconv.ParseFloat(res[1],64)
 	if err != nil {
 		return fmt.Errorf("Invalid Config Parameter!")
 	}
 	switch key {
 	case "MAX_VEHICLES":
-		config_parameters.MAX_VEHICLES = value
+		config_parameters.MAX_VEHICLES = int(value)
 	case "NUM_RUNS":
-		config_parameters.NUM_RUNS = value
+		config_parameters.NUM_RUNS = int(value)
 	case "INCREMENT_VEHICLE_PATH":
-		config_parameters.INCREMENT_VEHICLE_PATH = value
+		config_parameters.INCREMENT_VEHICLE_PATH = int(value)
 	case "SIM_RATE":
 		if value <= 0 {
 			return fmt.Errorf("Invalid SIM_RATE must be >0!")
