@@ -3,7 +3,7 @@ body {
     background: #ffffff;
 }
 
-.map {
+#map {
     border: 1px solid #444;
     background: #ffffff;
     height:99.28vh;

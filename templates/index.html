@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
-<div class="map" width="99.7%" height="100%">
+<div id="map" width="99.7%" height="100%">
     <svg width="100%" height="100%">
     <g></g>
     </svg>
@@ -15,7 +15,7 @@
 <script src="/static/renderer.js"></script>
 <script>
     var socket = new WebSocket("ws://localhost:8080/echo");
-    var renderer = new Renderer();
+    var renderer = new Renderer(socket);
 
     socket.onopen = function () {
         console.log("Status: Connected");
@@ -31,7 +31,8 @@
         switch (msg.Type) {
             case "vehicle_message":
                 renderer.updateVehicles(msg_data);
-                renderer.renderControls(msg_data[0].Time);
+                renderer.updateCurrTime(msg_data[0].Time);
+                renderer.renderControls();
                 renderer.renderVehicleUpdate();
 
                 for (let i = 0; i < msg_data.length; i++) {
@@ -42,6 +43,7 @@
             case "map_setup_message":
                 renderer.updateNodes(msg_data.Nodes);
                 renderer.updateLanes(msg_data.Lanes);
+                renderer.updateSimRate(msg_data.ConfigParameters.SIM_RATE);
                 renderer.renderStaticMap();
                 break;
             default:

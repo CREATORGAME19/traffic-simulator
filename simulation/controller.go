@@ -57,7 +57,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	mapsim := InitialiseMap(nodes, lanes, config_parameters)
 
 	frontend_chan := make(chan VehicleInfoDatagram, config_parameters.MAX_VEHICLES)
-	go runFrontend(config_parameters, &wg, frontend_chan, mapsim)
+	go runFrontend(&wg, frontend_chan, mapsim)
 
 	defer close(frontend_chan)
 
@@ -76,9 +76,11 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	var sim_time SimTime
 	sim_time = 0
 	sim_time_step := 0.1 //seconds
-	var sim_rate float64 = config_parameters.SIM_RATE
-	minDuration := time.Duration((sim_time_step/sim_rate)*1000000000) //Defines time duration for each iteration
 	for i := 0; i < config_parameters.NUM_RUNS; i++ {
+		minDuration := time.Duration((sim_time_step/mapsim.config_parameters.SIM_RATE)*1000000000) //Defines time duration for each iteration
+		if mapsim.config_parameters.SIM_RATE == 0 {
+			minDuration = 0
+		}
 		start := time.Now()
 		for _,a := range rand.Perm(len(mapsim.nodes)) { //Trigger spawners each time
 			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
@@ -99,6 +101,4 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 		elapsed := time.Since(start)
 		time.Sleep(minDuration - elapsed)
 	}
-	close(frontend_chan)
-	select {} //Temporary
 }
