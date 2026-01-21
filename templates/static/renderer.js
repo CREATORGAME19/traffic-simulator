@@ -274,6 +274,9 @@ class Renderer {
         if (nearest_index >= SIM_RATES.length) {
             return
         }
+        if (this.sim_rate == 0) {
+            document.getElementById("pauseBtn").innerHTML = "⏸";
+        }
         this.updateSimRate(SIM_RATES[nearest_index]);
         this.renderControls();
         this.sendSimRateUpdateMsg(SIM_RATES[nearest_index]);
@@ -290,6 +293,9 @@ class Renderer {
         this.updateSimRate(SIM_RATES[nearest_index]);
         this.renderControls();
         this.sendSimRateUpdateMsg(SIM_RATES[nearest_index]);
+        if (this.sim_rate == 0) {
+            document.getElementById("pauseBtn").innerHTML = "▶";
+        }
     }
 
     PauseSimRate() {
