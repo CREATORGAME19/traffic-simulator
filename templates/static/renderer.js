@@ -230,7 +230,7 @@ class Renderer {
             nearest_index++;
         }
         if (nearest_index >= SIM_RATES.length) {
-            return
+            nearest_index = 0;
         }
         if (this.sim_rate == 0) {
             document.getElementById("pauseBtn").innerHTML = "⏸";
@@ -246,7 +246,7 @@ class Renderer {
             nearest_index--;
         }
         if (nearest_index < 0) {
-            return
+            nearest_index = SIM_RATES.length-1;
         }
         this.updateSimRate(SIM_RATES[nearest_index]);
         this.renderControls();
@@ -258,7 +258,7 @@ class Renderer {
 
     PauseSimRate() {
         if (this.sim_rate != 0) {
-            this.prev_sim_rate = this.sim_rate;
+            this.prev_sim_rate = this.sim_rate != 0 ? this.sim_rate : 1;
             this.updateSimRate(0); 
             this.sendSimRateUpdateMsg(0);
             
