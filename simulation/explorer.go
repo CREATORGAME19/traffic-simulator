@@ -71,7 +71,7 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 		reader.Add(1) //Only one reader allowed at once
 		
 		var ackReceived sync.WaitGroup
-		go RunWebReaderLoop(conn, mapsim, &ackReceived)
+		go RunWebReaderLoop(conn, mapsim, &ackReceived, wg)
 
 		if err := SendMapSetupMessage(conn, mapsim, &ackReceived); err != nil {
 			fmt.Println("Write Error:", err)
@@ -88,7 +88,10 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 			ackReceived.Wait()
 			run++
 		}
-
+		if err := SendLoadingDoneMessage(conn); err != nil {
+			fmt.Println("Write Error:", err)
+			return
+		}
 		for data := range channel { //Reader loop for controller channel
 			vehicle_fetch_history[current_run][data.id] = data
 			vehicles_seen++
@@ -118,6 +121,10 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 	http.ListenAndServe(":"+PORT, nil)
 }
 
+func SendLoadingDoneMessage(conn *websocket.Conn) error {
+	return conn.WriteJSON(Message{Type:"loading_done_message", Data: ""})
+}
+
 func SendWebVehicleMessage(conn *websocket.Conn, data []VehicleInfoDatagram, ack_received *sync.WaitGroup) error{
 	msg := make([]VehicleMessage, len(data))
 	for i:=0;i<len(data);i++ {
@@ -139,7 +146,14 @@ func SendMapSetupMessage(conn *websocket.Conn, mapsim *Map, ack_received *sync.W
 	return conn.WriteJSON(Message{Type:"map_setup_message", Data: msg})
 }
 
-func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, ackReceived *sync.WaitGroup) {
+func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, ackReceived *sync.WaitGroup, wg *sync.WaitGroup) {
+	blocking := false
+	defer func() {
+		if blocking {
+			wg.Done()
+			mapsim.config_parameters.SIM_RATE = 1
+		}
+	}()
 	for {
 		msg, err := ReadWebMessage(conn)
 		if err != nil {
@@ -152,15 +166,16 @@ func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, ackReceived *sync.WaitG
 		case "sim_rate_update":
 			rate, ok := msg.Data.(float64)
 			if !ok {
-				fmt.Println("SIM_RATE is not a float64: %T", msg.Data)
+				fmt.Println("Error: SIM_RATE is not a float!")
 				return
 			}
 			if mapsim.config_parameters.SIM_RATE != rate && rate == 0 {
-				ackReceived.Add(1)
+				wg.Add(1)
+				blocking = true
 			} else if mapsim.config_parameters.SIM_RATE != rate && mapsim.config_parameters.SIM_RATE == 0 {
-				ackReceived.Done()
+				wg.Done()
+				blocking = false
 			}
-
 			mapsim.config_parameters.SIM_RATE = rate
 		default:
 			fmt.Println("Read Error: Unknown Web Message!")

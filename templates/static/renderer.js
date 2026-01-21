@@ -106,17 +106,23 @@ class Renderer {
         const map = document.getElementById("map");
         const rect = map.getBoundingClientRect();
 
-        var time_display = document.getElementById("time_indicator");
-        if (time_display == null) {
-            var time_display = document.createElementNS(SVG_NS, "text");
-            time_display.setAttribute("x", 10);
-            time_display.setAttribute("y", 20);
-            time_display.setAttribute("font-size", 21);
-            time_display.setAttribute("id", "time_indicator");
+        var foreignObjectContainer = document.getElementById("topLeftOverlay");
+        if (foreignObjectContainer == null) {
+            var foreignObjectContainer = document.createElementNS(SVG_NS, "foreignObject");
+            foreignObjectContainer.setAttribute("id", "topLeftOverlay");
+            foreignObjectContainer.setAttribute("width", 135); //No dynamic resizing :(
+            foreignObjectContainer.setAttribute("height",26); //No dynamic resizing :(
+            foreignObjectContainer.setAttribute("x", 10);
+            foreignObjectContainer.setAttribute("y", 20);
+            
+            foreignObjectContainer.innerHTML = `
+            <div id="topLeftPanel" xmlns="http://www.w3.org/1999/xhtml">
+                <div id="timeIndicator" width="fit-content">Time: </div>
+            </div>`;
 
-            document.getElementById("controls-layer").appendChild(time_display);
+            document.getElementById("controls-layer").appendChild(foreignObjectContainer);
         }
-        time_display.textContent = 'Time: '+this.formatTime(this.curr_time);
+        document.getElementById("timeIndicator").innerHTML = 'Time: '+this.formatTime(this.curr_time);
 
         this.renderBottomControlsOverlay(rect);
     }

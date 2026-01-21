@@ -47,6 +47,10 @@ line {
     font-size: 21px;
 }
 
+#timeIndicator {
+    font-size: 21px;
+}
+
 #bottomControlsPanel {
     display: flex;
     justify-content: space-evenly;
@@ -54,4 +58,51 @@ line {
     width: 98.2%;
     background-color: white;
     border: 1px solid #444;
+}
+
+#topLeftPanel {
+    background-color: white;
+    border: 1px solid #444;
+}
+
+#disconnectBanner {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+
+    padding: 6px 12px;
+    border-radius: 6px;
+
+    background-color: #c62828;
+    color: white;
+
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+
+    display: none; /* hidden by default */
+
+    z-index: 1000;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+#loadingBanner {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+
+    padding: 6px 12px;
+    border-radius: 6px;
+
+    background-color: #ffdd00;
+    color: white;
+
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+
+    display: none; /* hidden by default */
+
+    z-index: 1000;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }

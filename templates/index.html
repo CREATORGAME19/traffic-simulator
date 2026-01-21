@@ -7,6 +7,30 @@
   <link rel="stylesheet" href="/static/index.css">
 </head>
 <body>
+<div id="disconnectBanner">DISCONNECTED</div>
+<script>
+    function showDisconnectedBanner() {
+        document.getElementById("disconnectBanner").style.display = "flex";
+        document.getElementById("bottomControlsPanel").style.opacity = 0;
+    }
+
+    function hideDisconnectedBanner() {
+        document.getElementById("disconnectBanner").style.display = "none";
+        document.getElementById("bottomControlsPanel").style.opacity = 1;
+    }
+</script>
+<div id="loadingBanner">INITIALISING...</div>
+<script>
+    function showLoadingBanner() {
+        document.getElementById("loadingBanner").style.display = "flex";
+        document.getElementById("bottomControlsPanel").style.opacity = 0;
+    }
+
+    function hideLoadingBanner() {
+        document.getElementById("loadingBanner").style.display = "none";
+        document.getElementById("bottomControlsPanel").style.opacity = 1;
+    }
+</script>
 <div id="map" width="99.7%" height="100%">
     <svg width="100%" height="100%">
     <g></g>
@@ -19,10 +43,14 @@
 
     socket.onopen = function () {
         console.log("Status: Connected");
+        hideDisconnectedBanner();
+        showLoadingBanner();
     };
 
     socket.onclose = function () {
         console.log("Status: Disconnected");
+        hideLoadingBanner();
+        showDisconnectedBanner();
     }
 
     socket.onmessage = function (e) {
@@ -39,22 +67,29 @@
                     console.log("Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n");
                 }
                 console.log("\n");
+                socket.send(
+                    JSON.stringify(
+                        {Type: "ACK", Data: null}
+                    )
+                );
                 break;
             case "map_setup_message":
                 renderer.updateNodes(msg_data.Nodes);
                 renderer.updateLanes(msg_data.Lanes);
                 renderer.updateSimRate(msg_data.ConfigParameters.SIM_RATE);
                 renderer.renderStaticMap();
+                socket.send(
+                    JSON.stringify(
+                        {Type: "ACK", Data: null}
+                    )
+                );
+                break;
+            case "loading_done_message":
+                hideLoadingBanner();
                 break;
             default:
                 output.innerHTML += "Error: Unknown message received!\n";
         }
-
-        socket.send(
-            JSON.stringify(
-                {Type: "ACK", Data: null}
-            )
-        )
     };
 </script>
 
