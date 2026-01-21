@@ -118,6 +118,35 @@ class Renderer {
         }
         time_display.textContent = 'Time: '+this.formatTime(this.curr_time);
 
+        this.renderBottomControlsOverlay(rect);
+    }
+
+    renderBottomControlsOverlay(rect) {
+        var foreignObjectContainer = document.getElementById("bottomControlsOverlay");
+        if (foreignObjectContainer == null) {
+            var foreignObjectContainer = document.createElementNS(SVG_NS, "foreignObject");
+            foreignObjectContainer.setAttribute("id", "bottomControlsOverlay");
+            foreignObjectContainer.setAttribute("width", 150);
+            foreignObjectContainer.setAttribute("height",70);
+            
+            foreignObjectContainer.innerHTML = `
+            <div id="bottomControlsPanel" xmlns="http://www.w3.org/1999/xhtml">
+                <button id="pauseBtn">⏸</button>
+                <button id="simRateDecBtn">-</button>
+                <p id="simRateIndicator"></p>
+                <button id="simRateIncBtn">+</button>
+            </div>`;
+
+            document.getElementById("controls-layer").appendChild(foreignObjectContainer);
+            document.getElementById("simRateIncBtn").addEventListener("click", () => { this.SimRateIncrease() });
+            document.getElementById("simRateDecBtn").addEventListener("click", () => { this.SimRateDecrease() });
+            document.getElementById("pauseBtn").addEventListener("click", () => { this.PauseSimRate() });
+        }
+        foreignObjectContainer.setAttribute("x", (rect.width*0.5) - 70);
+        foreignObjectContainer.setAttribute("y", rect.height-70);
+        document.getElementById("simRateIndicator").innerHTML = this.sim_rate+'x';
+
+        /*
         var sim_rate_display = document.getElementById("sim_rate_indicator");
         if (sim_rate_display == null) {
             var sim_rate_display = document.createElementNS(SVG_NS, "text");
@@ -129,28 +158,6 @@ class Renderer {
         sim_rate_display.setAttribute("x", rect.width*0.5);
         sim_rate_display.setAttribute("y", rect.height-15);
         sim_rate_display.textContent = this.sim_rate+'x';
-
-        this.renderControlButtons(rect);
-    }
-
-    renderControlButtons(rect) {
-        var sim_rate_inc_button = document.getElementById("sim_rate_inc_button");
-        if (sim_rate_inc_button == null) {
-            var sim_rate_inc_button = document.createElementNS(SVG_NS, "foreignObject");
-            sim_rate_inc_button.setAttribute("id", "sim_rate_inc_button");
-            sim_rate_inc_button.setAttribute("width", 25);
-            sim_rate_inc_button.setAttribute("height",25);
-            
-            sim_rate_inc_button.innerHTML = `
-            <div xmlns="http://www.w3.org/1999/xhtml">
-                <button id="simRateIncBtn">+</button>
-            </div>`;
-
-            document.getElementById("controls-layer").appendChild(sim_rate_inc_button);
-            document.getElementById("simRateIncBtn").addEventListener("click", () => { this.SimRateIncrease() });
-        }
-        sim_rate_inc_button.setAttribute("x", (rect.width*0.5) + 50);
-        sim_rate_inc_button.setAttribute("y", rect.height-33);
 
         var sim_rate_dec_button = document.getElementById("sim_rate_dec_button");
         if (sim_rate_dec_button == null) {
@@ -187,6 +194,7 @@ class Renderer {
         }
         pause_button.setAttribute("x", (rect.width*0.5) - 90);
         pause_button.setAttribute("y", rect.height-33);
+        */
     }
 
     renderStaticMap() {
@@ -303,10 +311,14 @@ class Renderer {
             this.prev_sim_rate = this.sim_rate;
             this.updateSimRate(0); 
             this.sendSimRateUpdateMsg(0);
-            document.getElementById("pauseBtn").innerHTML = "▶";
+            
         } else {
             this.updateSimRate(this.prev_sim_rate); 
             this.sendSimRateUpdateMsg(this.prev_sim_rate);
+        }
+        if (this.sim_rate == 0) {
+            document.getElementById("pauseBtn").innerHTML = "▶";
+        } else {
             document.getElementById("pauseBtn").innerHTML = "⏸";
         }
         this.renderControls();
