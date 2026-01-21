@@ -145,56 +145,6 @@ class Renderer {
         foreignObjectContainer.setAttribute("x", (rect.width*0.5) - 70);
         foreignObjectContainer.setAttribute("y", rect.height-70);
         document.getElementById("simRateIndicator").innerHTML = this.sim_rate+'x';
-
-        /*
-        var sim_rate_display = document.getElementById("sim_rate_indicator");
-        if (sim_rate_display == null) {
-            var sim_rate_display = document.createElementNS(SVG_NS, "text");
-            sim_rate_display.setAttribute("font-size", 21);
-            sim_rate_display.setAttribute("id", "sim_rate_indicator");
-
-            document.getElementById("controls-layer").appendChild(sim_rate_display);
-        }
-        sim_rate_display.setAttribute("x", rect.width*0.5);
-        sim_rate_display.setAttribute("y", rect.height-15);
-        sim_rate_display.textContent = this.sim_rate+'x';
-
-        var sim_rate_dec_button = document.getElementById("sim_rate_dec_button");
-        if (sim_rate_dec_button == null) {
-            var sim_rate_dec_button = document.createElementNS(SVG_NS, "foreignObject");
-            sim_rate_dec_button.setAttribute("id", "sim_rate_dec_button");
-            sim_rate_dec_button.setAttribute("width", 25);
-            sim_rate_dec_button.setAttribute("height",25);
-            
-            sim_rate_dec_button.innerHTML = `
-            <div xmlns="http://www.w3.org/1999/xhtml">
-                <button id="simRateDecBtn">-</button>
-            </div>`;
-
-            document.getElementById("controls-layer").appendChild(sim_rate_dec_button);
-            document.getElementById("simRateDecBtn").addEventListener("click", () => { this.SimRateDecrease() });
-        }
-        sim_rate_dec_button.setAttribute("x", (rect.width*0.5) - 50);
-        sim_rate_dec_button.setAttribute("y", rect.height-33);
-
-        var pause_button = document.getElementById("pause_button");
-        if (pause_button == null) {
-            var pause_button = document.createElementNS(SVG_NS, "foreignObject");
-            pause_button.setAttribute("id", "pause_button");
-            pause_button.setAttribute("width", 30);
-            pause_button.setAttribute("height",25);
-            
-            pause_button.innerHTML = `
-            <div xmlns="http://www.w3.org/1999/xhtml">
-                <button id="pauseBtn">⏸</button>
-            </div>`;
-
-            document.getElementById("controls-layer").appendChild(pause_button);
-            document.getElementById("pauseBtn").addEventListener("click", () => { this.PauseSimRate() });
-        }
-        pause_button.setAttribute("x", (rect.width*0.5) - 90);
-        pause_button.setAttribute("y", rect.height-33);
-        */
     }
 
     renderStaticMap() {
