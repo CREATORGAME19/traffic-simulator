@@ -14,6 +14,11 @@ circle.intersection-node {
     fill: rgba(0, 0, 0, 0);
 }
 
+circle.traffic-light-node {
+    stroke: #000000;
+    fill: rgba(0, 0, 0, 0);
+}
+
 circle.spawner-node {
     fill: #FF0000;
 }

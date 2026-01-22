@@ -159,7 +159,7 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 		if err != nil {
 			return VehiclePosition{}, err
 		}
-		if a.isLaneFreeAtPos(m, desired_pos) { //Eventually check needs to be added if vehicle is at head of queue
+		if a.isLaneFreeAtPos(m, desired_pos) && m.nodes[curr_node_id].agent.CanVehicleProceed(m, new_time, a, desired_pos.lane_id){
 			a.SwitchToNewLane(m, desired_pos) //If lane is free to enter, then proceed to the requested position
 			pos = desired_pos
 		} else { //Otherwise wait

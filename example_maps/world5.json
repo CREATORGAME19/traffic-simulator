@@ -1,0 +1,185 @@
+{
+    "road_nodes": [
+        {
+            "ID": 0,
+            "Position": {
+                "x": -400,
+                "y": -400
+            },
+            "Lanes_Out": [0],
+            "Lanes_In": [],
+            "Agent": 1,
+            "AgentProp": {
+                "spawn_rate": 0.2
+            }
+        },
+        {
+            "ID": 1,
+            "Position": {
+                "x": 0,
+                "y": 0
+            },
+            "Lanes_Out": [1, 2],
+            "Lanes_In": [0,3],
+            "Agent": 0,
+            "AgentProp": {
+            }
+        },
+        {
+            "ID": 2,
+            "Position": {
+                "x": 600,
+                "y": 600
+            },
+            "Lanes_Out": [4],
+            "Lanes_In": [1],
+            "Agent": 0,
+            "AgentProp": {
+            }
+        },
+        {
+            "ID": 3,
+            "Position": {
+                "x": 600,
+                "y": -600
+            },
+            "Lanes_Out": [5],
+            "Lanes_In": [2],
+            "Agent": 0,
+            "AgentProp": {
+            }
+        },
+        {
+            "ID": 4,
+            "Position": {
+                "x": -388,
+                "y": -412
+            },
+            "Lanes_Out": [3],
+            "Lanes_In": [],
+            "Agent": 1,
+            "AgentProp": {
+                "spawn_rate": 0.2
+            }
+        },
+        {
+            "ID": 5,
+            "Position": {
+                "x": 1200,
+                "y": 0
+            },
+            "Lanes_Out": [6],
+            "Lanes_In": [4,5],
+            "Agent": 3,
+            "AgentProp": {
+                "time_intervals": [400,500]
+            }
+        },
+        {
+            "ID": 6,
+            "Position": {
+                "x": 1500,
+                "y": 0
+            },
+            "Lanes_Out": [],
+            "Lanes_In": [6],
+            "Agent": 2,
+            "AgentProp": {
+            }
+        }
+    ],
+
+    "lanes": [
+        {
+            "ID": 0,
+            "Start_Position": {
+                "x": -400,
+                "y": -400
+            },
+            "End_Position": {
+                "x": -30,
+                "y": -30
+            },
+            "From_Node": 0,
+            "To_Node": 1
+        },
+        {
+            "ID": 1,
+            "Start_Position": {
+                "x": 30,
+                "y": 30
+            },
+            "End_Position": {
+                "x": 600,
+                "y": 600
+            },
+            "From_Node": 1,
+            "To_Node": 2
+        },
+        {
+            "ID": 2,
+            "Start_Position": {
+                "x": 30,
+                "y": -30
+            },
+            "End_Position": {
+                "x": 600,
+                "y": -600
+            },
+            "From_Node": 1,
+            "To_Node": 3
+        },
+        {
+            "ID": 3,
+            "Start_Position": {
+                "x": -388,
+                "y": -412
+            },
+            "End_Position": {
+                "x": -22,
+                "y": -42
+            },
+            "From_Node": 4,
+            "To_Node": 1
+        },
+        {
+            "ID": 4,
+            "Start_Position": {
+                "x": 612,
+                "y": 588
+            },
+            "End_Position": {
+                "x": 1188,
+                "y": 12
+            },
+            "From_Node": 2,
+            "To_Node": 5
+        },
+        {
+            "ID": 5,
+            "Start_Position": {
+                "x": 612,
+                "y": -588
+            },
+            "End_Position": {
+                "x": 1188,
+                "y": -12
+            },
+            "From_Node": 3,
+            "To_Node": 5
+        },
+        {
+            "ID": 6,
+            "Start_Position": {
+                "x": 1216,
+                "y": 0
+            },
+            "End_Position": {
+                "x": 1500,
+                "y": 0
+            },
+            "From_Node": 5,
+            "To_Node": 6
+        }
+    ]
+}

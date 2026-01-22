@@ -187,6 +187,10 @@ class Renderer {
                         var class_name = 'sink-node';
                         var radius = 5;
                         break;
+                    case 3:
+                        var class_name = 'traffic-light-node';
+                        var radius = 16;
+                        break;
                     default:
                         var class_name = 'road-node';
                         var radius = 5;

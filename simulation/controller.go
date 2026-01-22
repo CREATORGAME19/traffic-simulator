@@ -82,8 +82,8 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 			minDuration = 0
 		}
 		start := time.Now()
-		for _,a := range rand.Perm(len(mapsim.nodes)) { //Trigger spawners each time
-			mapsim.nodes[a].agent.SpawnVehicles(mapsim, sim_time)
+		for _,a := range rand.Perm(len(mapsim.nodes)) { //Update spawners/intersections each time
+			mapsim.nodes[a].agent.Poke(mapsim, sim_time)
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, VehicleID(v))

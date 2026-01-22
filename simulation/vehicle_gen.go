@@ -11,7 +11,7 @@ func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID) *Veh
 			VehicleProp{
 				max_speed:        15,
 				max_acc:          (rand.Float64()*2)+1,
-				minimum_gap_size: 5,
+				minimum_gap_size: 6,
 			},
 			destination,
 			origin,
