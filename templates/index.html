@@ -95,8 +95,10 @@
             case "loading_done_message":
                 hideLoadingBanner();
                 break;
+            case "ping_message": //Ignore for now
+                break
             default:
-                output.innerHTML += "Error: Unknown message received!\n";
+                console.log("Error: Unknown message received!");
         }
     };
 </script>

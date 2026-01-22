@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -45,8 +46,9 @@ type MapLaneSetupMessage struct {
 }
 
 var reader sync.WaitGroup
+var writer sync.WaitGroup
 
-func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *Map) {
+func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, simrate_chan chan float64, mapsim *Map) {
 	vehicle_fetch_history := make([][]VehicleInfoDatagram, mapsim.config_parameters.NUM_RUNS)
 	for i := 0; i < mapsim.config_parameters.NUM_RUNS; i++ {
 		vehicle_fetch_history[i] = make([]VehicleInfoDatagram, mapsim.config_parameters.MAX_VEHICLES)
@@ -71,10 +73,9 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 		reader.Add(1) //Only one reader allowed at once
 		
 		var webReaderChan chan error = make(chan error)
-		defer close(webReaderChan)
-		go RunWebReaderLoop(conn, mapsim, webReaderChan, wg)
+		go RunWebReaderLoop(conn, mapsim, webReaderChan, simrate_chan)
 
-		if err := SendMapSetupMessage(conn, mapsim); err != nil {
+		if err := SendMapSetupMessage(conn, &writer, mapsim); err != nil {
 			fmt.Println("Write Error:", err)
 			return
 		}
@@ -85,7 +86,7 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 
 		run := 0
 		for current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
-			if err := SendWebVehicleMessage(conn, vehicle_fetch_history[run]); err != nil {
+			if err := SendWebVehicleMessage(conn, &writer, vehicle_fetch_history[run]); err != nil {
 				fmt.Println("Write Error:", err)
 				return
 			}
@@ -95,30 +96,38 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 			}
 			run++
 		}
-		if err := SendLoadingDoneMessage(conn); err != nil {
+		if err := SendLoadingDoneMessage(conn, &writer); err != nil {
 			fmt.Println("Write Error:", err)
 			return
 		}
-		for data := range channel { //Reader loop for controller channel
-			vehicle_fetch_history[current_run][data.id] = data
-			vehicles_seen++
-			wg.Done()
+		go func() {
+			for data := range channel { //Reader loop for controller channel
+				vehicle_fetch_history[current_run][data.id] = data
+				vehicles_seen++
+				wg.Done()
 
-			if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
-				vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
-				current_run++
+				if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
+					vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
+					current_run++
 
-				if err := SendWebVehicleMessage(conn, vehicle_fetch_history[current_run-1]); err != nil {
-					fmt.Println("Write Error:", err)
-					return
+					if err := SendWebVehicleMessage(conn, &writer, vehicle_fetch_history[current_run-1]); err != nil {
+						fmt.Println("Write Error:", err)
+						return
+					}
+					if err := <-webReaderChan; err != nil {
+						fmt.Println(err)
+						return
+					}
 				}
-				if err := <-webReaderChan; err != nil {
-					fmt.Println(err)
-					return
-				}
+			}	
+		}()
+		for {
+			if err := SendPingMessage(conn, &writer); err != nil {
+				fmt.Println("Write Error:", err)
+				return
 			}
+			time.Sleep(5*time.Second)
 		}
-
 	})
 
 	fs := http.FileServer(http.Dir("templates/static"))
@@ -131,11 +140,18 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, mapsim *M
 	http.ListenAndServe(":"+PORT, nil)
 }
 
-func SendLoadingDoneMessage(conn *websocket.Conn) error {
+func SendLoadingDoneMessage(conn *websocket.Conn, writer *sync.WaitGroup) error {
+	defer writer.Done()
+	writer.Wait()
+	writer.Add(1)
 	return conn.WriteJSON(Message{Type:"loading_done_message", Data: ""})
 }
 
-func SendWebVehicleMessage(conn *websocket.Conn, data []VehicleInfoDatagram) error{
+func SendWebVehicleMessage(conn *websocket.Conn, writer *sync.WaitGroup, data []VehicleInfoDatagram) error{
+	defer writer.Done()
+	writer.Wait()
+	writer.Add(1)
+
 	msg := make([]VehicleMessage, len(data))
 	for i:=0;i<len(data);i++ {
 		msg[i] = VehicleMessage{Vehicle_ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status}
@@ -143,7 +159,11 @@ func SendWebVehicleMessage(conn *websocket.Conn, data []VehicleInfoDatagram) err
 	return conn.WriteJSON(Message{Type:"vehicle_message", Data: msg})
 }
 
-func SendMapSetupMessage(conn *websocket.Conn, mapsim *Map) error {
+func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *Map) error {
+	defer writer.Done()
+	writer.Wait()
+	writer.Add(1)
+
 	msg := MapSetupMessage{Nodes: make([]MapNodeSetupMessage,len(mapsim.nodes)), Lanes: make([]MapLaneSetupMessage, len(mapsim.lanes)), ConfigParameters: *mapsim.config_parameters}
 	for n:=0;n<len(mapsim.nodes);n++ {
 		msg.Nodes[n] = MapNodeSetupMessage{Node_ID: mapsim.nodes[n].id, X: mapsim.nodes[n].pos.x, Y: mapsim.nodes[n].pos.y, AgentType: mapsim.nodes[n].agent.Descriptor()}
@@ -154,13 +174,13 @@ func SendMapSetupMessage(conn *websocket.Conn, mapsim *Map) error {
 	return conn.WriteJSON(Message{Type:"map_setup_message", Data: msg})
 }
 
-func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan error, wg *sync.WaitGroup) {
-	wg_blocking := false
+func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan error, simrate_chan chan float64) {
 	defer func() {
-		if wg_blocking {
-			wg.Done()
+		if mapsim.config_parameters.SIM_RATE == 0 {
 			mapsim.config_parameters.SIM_RATE = 1
+			simrate_chan <- 1
 		}
+		close(webReaderChan)
 	}()
 	for {
 		msg, err := ReadWebMessage(conn)
@@ -179,14 +199,13 @@ func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan erro
 				webReaderChan <- fmt.Errorf("Error: SIM_RATE is not a float!")
 				return
 			}
-			if mapsim.config_parameters.SIM_RATE != rate && rate == 0 {
-				wg.Add(1)
-				wg_blocking = true
-			} else if mapsim.config_parameters.SIM_RATE != rate && mapsim.config_parameters.SIM_RATE == 0 {
-				wg.Done()
-				wg_blocking = false
-			}
 			mapsim.config_parameters.SIM_RATE = rate
+			select {
+			case simrate_chan <- rate:
+				//Nothing
+			default:
+				//Nothing
+			}
 		default:
 			fmt.Println("Read Error: Unknown Web Message!")
 			webReaderChan <- fmt.Errorf("Read Error: Unknown Web Message!")
@@ -202,4 +221,12 @@ func ReadWebMessage(conn *websocket.Conn) (*Message,error) {
 		return &Message{Type:"",Data:nil}, err
 	}
 	return &msg, nil
+}
+
+func SendPingMessage(conn *websocket.Conn, writer *sync.WaitGroup) (error) {
+	defer writer.Done()
+	writer.Wait()
+	writer.Add(1)
+
+	return conn.WriteJSON(Message{Type:"ping_message", Data: ""})
 }

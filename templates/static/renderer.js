@@ -9,7 +9,7 @@ class Renderer {
         this.node_data = [];
         this.lane_data = [];
         this.curr_time = 0;
-        this.prev_sim_rate = 0;
+        this.prev_sim_rate = 1;
         this.sim_rate = 0;
         this.web_socket = web_socket;
 

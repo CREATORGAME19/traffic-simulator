@@ -57,7 +57,8 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	mapsim := InitialiseMap(nodes, lanes, config_parameters)
 
 	frontend_chan := make(chan VehicleInfoDatagram, config_parameters.MAX_VEHICLES)
-	go runFrontend(&wg, frontend_chan, mapsim)
+	simrate_chan := make(chan float64)
+	go runFrontend(&wg, frontend_chan, simrate_chan, mapsim)
 
 	defer close(frontend_chan)
 
@@ -77,10 +78,10 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	sim_time = 0
 	sim_time_step := 0.1 //seconds
 	for i := 0; i < config_parameters.NUM_RUNS; i++ {
-		minDuration := time.Duration((sim_time_step/mapsim.config_parameters.SIM_RATE)*1000000000) //Defines time duration for each iteration
-		if mapsim.config_parameters.SIM_RATE == 0 {
-			minDuration = 0
+		for mapsim.config_parameters.SIM_RATE == 0 { //Wait until SIM_RATE > 0
+			<-simrate_chan
 		}
+		minDuration := time.Duration((sim_time_step/mapsim.config_parameters.SIM_RATE)*1000000000) //Defines time duration for each iteration
 		start := time.Now()
 		for _,a := range rand.Perm(len(mapsim.nodes)) { //Update spawners/intersections each time
 			mapsim.nodes[a].agent.Poke(mapsim, sim_time)
