@@ -11,24 +11,32 @@
 <script>
     function showDisconnectedBanner() {
         document.getElementById("disconnectBanner").style.display = "flex";
-        document.getElementById("bottomControlsPanel").style.opacity = 0;
+        if (document.getElementById("bottomControlsPanel") != null) {
+            document.getElementById("bottomControlsPanel").style.opacity = 0;
+        }
     }
 
     function hideDisconnectedBanner() {
         document.getElementById("disconnectBanner").style.display = "none";
-        document.getElementById("bottomControlsPanel").style.opacity = 1;
+        if (document.getElementById("bottomControlsPanel") != null) {
+            document.getElementById("bottomControlsPanel").style.opacity = 1;
+        }
     }
 </script>
 <div id="loadingBanner">INITIALISING...</div>
 <script>
     function showLoadingBanner() {
         document.getElementById("loadingBanner").style.display = "flex";
-        document.getElementById("bottomControlsPanel").style.opacity = 0;
+        if (document.getElementById("bottomControlsPanel") != null) {
+            document.getElementById("bottomControlsPanel").style.opacity = 0;
+        }
     }
 
     function hideLoadingBanner() {
         document.getElementById("loadingBanner").style.display = "none";
-        document.getElementById("bottomControlsPanel").style.opacity = 1;
+        if (document.getElementById("bottomControlsPanel") != null) {
+            document.getElementById("bottomControlsPanel").style.opacity = 1;
+        }
     }
 </script>
 <div id="map" width="99.7%" height="100%">
