@@ -45,17 +45,20 @@ type MapLaneSetupMessage struct {
 	Start_X, Start_Y, End_X, End_Y float64
 }
 
-var reader sync.WaitGroup
+var reader sync.WaitGroup //Only 1 reader and 1 writer web socket at a time
 var writer sync.WaitGroup
 
-func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, simrate_chan chan float64, mapsim *Map) {
-	vehicle_fetch_history := make([][]VehicleInfoDatagram, mapsim.config_parameters.NUM_RUNS)
-	for i := 0; i < mapsim.config_parameters.NUM_RUNS; i++ {
+func runFrontend(channel chan VehicleInfoDatagram, simrate_chan chan float64, mapsim *Map) {
+	num_record_runs := max(1,int(float64(mapsim.config_parameters.NUM_RUNS)/(mapsim.config_parameters.RECORD_INTERVAL/SIM_TIME_STEP)))
+	vehicle_fetch_history := make([][]VehicleInfoDatagram, num_record_runs)
+	for i := 0; i < num_record_runs; i++ {
 		vehicle_fetch_history[i] = make([]VehicleInfoDatagram, mapsim.config_parameters.MAX_VEHICLES)
 	}
 
 	current_run := 0
 	vehicles_seen := 0 //Vehicles seen in the run so far
+	current_vehicle_fetch := make([]VehicleInfoDatagram, mapsim.config_parameters.MAX_VEHICLES)
+	lastRecord := SimTime(-1*mapsim.config_parameters.RECORD_INTERVAL)
 
 	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -102,15 +105,17 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, simrate_c
 		}
 		go func() {
 			for data := range channel { //Reader loop for controller channel
-				vehicle_fetch_history[current_run][data.id] = data
+				current_vehicle_fetch[data.id] = data
 				vehicles_seen++
-				wg.Done()
 
 				if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
 					vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
-					current_run++
+					if current_vehicle_fetch[0].time-lastRecord >= SimTime(mapsim.config_parameters.MAX_VEHICLES) {
+						current_run++
+						lastRecord = current_vehicle_fetch[0].time
+					}
 
-					if err := SendWebVehicleMessage(conn, &writer, vehicle_fetch_history[current_run-1]); err != nil {
+					if err := SendWebVehicleMessage(conn, &writer, current_vehicle_fetch); err != nil {
 						fmt.Println("Write Error:", err)
 						return
 					}
@@ -121,7 +126,7 @@ func runFrontend(wg *sync.WaitGroup, channel chan VehicleInfoDatagram, simrate_c
 				}
 			}	
 		}()
-		for {
+		for { //Checks if frontend websocket is still active periodically
 			if err := SendPingMessage(conn, &writer); err != nil {
 				fmt.Println("Write Error:", err)
 				return

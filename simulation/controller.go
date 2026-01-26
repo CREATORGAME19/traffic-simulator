@@ -2,7 +2,6 @@ package simulation
 
 import (
 	"fmt"
-	"sync"
 	"time"
 	"math/rand/v2"
 )
@@ -19,9 +18,9 @@ type VehicleInfoDatagram VehicleLocation
 
 type SimTime float64
 
-func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
-	var wg sync.WaitGroup
+const SIM_TIME_STEP = 0.1 //seconds
 
+func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	// Initialize Map
 
 	nodes := make([]RoadNode,len(map_config.Road_nodes))
@@ -58,7 +57,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 
 	frontend_chan := make(chan VehicleInfoDatagram, config_parameters.MAX_VEHICLES)
 	simrate_chan := make(chan float64)
-	go runFrontend(&wg, frontend_chan, simrate_chan, mapsim)
+	go runFrontend(frontend_chan, simrate_chan, mapsim)
 
 	defer close(frontend_chan)
 
@@ -76,12 +75,11 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 
 	var sim_time SimTime
 	sim_time = 0
-	sim_time_step := 0.1 //seconds
 	for i := 0; i < config_parameters.NUM_RUNS; i++ {
 		for mapsim.config_parameters.SIM_RATE == 0 { //Wait until SIM_RATE > 0
 			<-simrate_chan
 		}
-		minDuration := time.Duration((sim_time_step/mapsim.config_parameters.SIM_RATE)*1000000000) //Defines time duration for each iteration
+		minDuration := time.Duration((SIM_TIME_STEP/mapsim.config_parameters.SIM_RATE)*1000000000) //Defines time duration for each iteration
 		start := time.Now()
 		for _,a := range rand.Perm(len(mapsim.nodes)) { //Update spawners/intersections each time
 			mapsim.nodes[a].agent.Poke(mapsim, sim_time)
@@ -89,16 +87,14 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, VehicleID(v))
 		}
-		wg.Wait()
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
-			wg.Add(1)
 			fetchresult := <-vehicle_channel
 			vehicle_locations[fetchresult.Vehicle_ID] = VehicleLocation{fetchresult.Vehicle_ID, fetchresult.X, fetchresult.Y, fetchresult.Time, fetchresult.Status}
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			frontend_chan <- VehicleInfoDatagram(vehicle_locations[v])
 		}
-		sim_time += SimTime(sim_time_step)
+		sim_time += SimTime(SIM_TIME_STEP)
 		elapsed := time.Since(start)
 		time.Sleep(minDuration - elapsed)
 	}
