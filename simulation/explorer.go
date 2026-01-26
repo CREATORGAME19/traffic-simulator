@@ -110,11 +110,13 @@ func runFrontend(channel chan VehicleInfoDatagram, simrate_chan chan float64, ma
 
 				if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
 					vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
-					if current_vehicle_fetch[0].time-lastRecord >= SimTime(mapsim.config_parameters.MAX_VEHICLES) {
+					if current_vehicle_fetch[0].time-lastRecord >= SimTime(mapsim.config_parameters.RECORD_INTERVAL) {
+						for i:=0;i<mapsim.config_parameters.MAX_VEHICLES;i++ {
+							vehicle_fetch_history[current_run][i] = current_vehicle_fetch[i]
+						}
 						current_run++
 						lastRecord = current_vehicle_fetch[0].time
 					}
-
 					if err := SendWebVehicleMessage(conn, &writer, current_vehicle_fetch); err != nil {
 						fmt.Println("Write Error:", err)
 						return
