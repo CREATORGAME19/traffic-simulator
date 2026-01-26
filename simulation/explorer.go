@@ -110,7 +110,7 @@ func runFrontend(channel chan VehicleInfoDatagram, simrate_chan chan float64, ma
 
 				if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
 					vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
-					if current_vehicle_fetch[0].time-lastRecord >= SimTime(mapsim.config_parameters.RECORD_INTERVAL) {
+					if current_vehicle_fetch[0].time-lastRecord > SimTime(mapsim.config_parameters.RECORD_INTERVAL) || AlmostEqual(mapsim.config_parameters.RECORD_INTERVAL, float64(current_vehicle_fetch[0].time-lastRecord)){
 						for i:=0;i<mapsim.config_parameters.MAX_VEHICLES;i++ {
 							vehicle_fetch_history[current_run][i] = current_vehicle_fetch[i]
 						}
