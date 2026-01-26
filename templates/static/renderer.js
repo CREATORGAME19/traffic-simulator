@@ -242,12 +242,14 @@ class Renderer {
         if (nearest_index >= SIM_RATES.length) {
             nearest_index = 0;
         }
-        if (this.sim_rate == 0) {
-            document.getElementById("pauseBtn").innerHTML = "⏸";
-        }
         this.updateSimRate(SIM_RATES[nearest_index]);
         this.renderControls();
         this.sendSimRateUpdateMsg(SIM_RATES[nearest_index]);
+        if (this.sim_rate == 0) {
+            document.getElementById("pauseBtn").innerHTML = "▶";
+        } else {
+            document.getElementById("pauseBtn").innerHTML = "⏸";
+        }
     }
 
     SimRateDecrease() {
@@ -263,6 +265,8 @@ class Renderer {
         this.sendSimRateUpdateMsg(SIM_RATES[nearest_index]);
         if (this.sim_rate == 0) {
             document.getElementById("pauseBtn").innerHTML = "▶";
+        } else {
+            document.getElementById("pauseBtn").innerHTML = "⏸";
         }
     }
 
