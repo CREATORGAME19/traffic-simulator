@@ -3,6 +3,13 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 const SIM_RATES = [0,0.5,1,2,3,4,5,10,100];
 
+const closePopup = () => {
+    document.getElementById('map').removeEventListener('click', closePopup);
+    const popup = document.getElementById("active-popup");
+    if (popup != null) {
+        popup.remove();
+    }
+};
 class Renderer {
     constructor(web_socket) {
         this.vehicle_data = [];
@@ -59,6 +66,7 @@ class Renderer {
         .attr('transform', e.transform);
         this.currentTransform = e.transform;
         this.renderVehicleUpdate();
+        this.updateSvgPopup();
     }
 
     initZoom() {
@@ -174,6 +182,10 @@ class Renderer {
                 node.setAttribute("id", "node_"+String(i));
                 node.setAttribute("cx", this.getRenderX(this.node_data[i].X));
                 node.setAttribute("cy", this.getRenderY(this.node_data[i].Y));
+                node.setAttribute("style", 'pointer-events: all;cursor: pointer;');
+                node.addEventListener("click", () => { 
+                    this.createSvgPopup("node", i, `Node ${i}`, `X: ${this.node_data[i].X || 0}, Y: ${this.node_data[i].Y || 0}`);
+                });
                 switch (this.node_data[i].AgentType) {
                     case 0:
                         var class_name = 'intersection-node';
@@ -211,6 +223,10 @@ class Renderer {
                 var vehicle = document.createElementNS(SVG_NS, "image");
                 vehicle.setAttribute("id", "vehicle_"+String(i));
                 vehicle.setAttribute("href", '/static/images/bus-logo.png');
+                vehicle.setAttribute("style", 'pointer-events: all;cursor: pointer;');
+                vehicle.addEventListener("click", () => { 
+                    this.createSvgPopup("vehicle", i, `Vehicle ${i}`, `X: ${this.vehicle_data[i].X || 0}, Y: ${this.vehicle_data[i].Y || 0}`);
+                });
 
                 document.getElementById("vehicle-layer").appendChild(vehicle);
             }
@@ -218,8 +234,9 @@ class Renderer {
             vehicle.setAttribute("y", this.getRenderY(this.vehicle_data[i].Y)-(15/t.k));
             vehicle.setAttribute("width", 30/t.k);
             vehicle.setAttribute("height", 30/t.k);
-            vehicle.setAttribute("opacity", this.vehicle_data[i].Status);
+            vehicle.classList.toggle("invisible-vehicle", this.vehicle_data[i].Status == 0);
         }
+        this.updateSvgPopup();
     }
 
     getRenderX(world_x) {
@@ -294,5 +311,83 @@ class Renderer {
                 {Type: "sim_rate_update", Data: new_sim_rate}
             )
         );
+    }
+
+    updateSvgPopup() {
+        const popup = document.getElementById("active-popup");
+        if (popup == null) return;
+
+        const t = this.currentTransform;
+        var x = 0.0;
+        var y = 0.0;
+        switch (popup.dataset.type){
+            case "node":
+                x = this.getRenderX(this.node_data[parseInt(popup.dataset.id)].X);
+                y = this.getRenderY(this.node_data[parseInt(popup.dataset.id)].Y);
+                
+                break;
+            case "vehicle":
+                x = this.getRenderX(this.vehicle_data[parseInt(popup.dataset.id)].X);
+                y = this.getRenderY(this.vehicle_data[parseInt(popup.dataset.id)].Y);
+                break;
+            default:
+                break;
+        }
+
+        // Inverse scale factor
+        const s = 1 / t.k;
+
+        const xPos = x - (65 * s);
+        const yPos = y - (70 * s);
+
+        popup.setAttribute("transform", `translate(${xPos}, ${yPos}) scale(${s})`);
+    }
+
+    createSvgPopup(item_type, item_id, title, content) {
+        const parentSvg = document.getElementById("vehicle-layer");
+        
+        var oldPopup = document.getElementById("active-popup");
+        if (oldPopup != null) {
+            closePopup();
+        }
+        
+        const group = document.createElementNS(SVG_NS, "g");
+        group.setAttribute("id", "active-popup");
+        
+        const bgColor = "rgba(255, 255, 255, 0.9)";
+
+        group.dataset.type = item_type;
+        group.dataset.id = item_id;
+
+        const rect = document.createElementNS(SVG_NS, "rect");
+        rect.setAttribute("width", "130");
+        rect.setAttribute("height", "55");
+        rect.setAttribute("rx", "6");
+        rect.setAttribute("fill", bgColor);
+        rect.setAttribute("stroke", "rgba(0, 0, 0, 0.1)");
+        rect.setAttribute("stroke-width", "1");
+
+        const text = document.createElementNS(SVG_NS, "text");
+        text.setAttribute("x", "15");
+        text.setAttribute("y", "22");
+        text.setAttribute("fill", "#000");
+        text.setAttribute("style", "font-family: sans-serif; font-size: 13px; font-weight: bold;");
+        text.textContent = title;
+
+        const subText = document.createElementNS(SVG_NS, "text");
+        subText.setAttribute("x", "15");
+        subText.setAttribute("y", "42");
+        subText.setAttribute("fill", "#333");
+        subText.setAttribute("style", "font-family: sans-serif; font-size: 11px;");
+        subText.textContent = content;
+
+        group.appendChild(rect);
+        group.appendChild(text);
+        group.appendChild(subText);
+        parentSvg.appendChild(group);
+
+        this.updateSvgPopup();
+
+        setTimeout(() => {document.getElementById("map").addEventListener('click', closePopup)}, 10);
     }
 }

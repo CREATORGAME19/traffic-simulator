@@ -40,7 +40,7 @@
     }
 </script>
 <div id="map" width="99.7%" height="100%">
-    <svg width="100%" height="100%">
+    <svg width="100%" height="100%" id="map-svg">
     <g></g>
     </svg>
 </div>
@@ -95,7 +95,7 @@
             case "loading_done_message":
                 hideLoadingBanner();
                 break;
-            case "ping_message": //Ignore for now
+            case "ping_message": //Ignore
                 break
             default:
                 console.log("Error: Unknown message received!");
