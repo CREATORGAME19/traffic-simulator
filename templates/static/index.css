@@ -115,3 +115,45 @@ line {
 .invisible-vehicle {
     display: none;
 }
+
+#popupLink {
+    font-family: sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: underline;
+    cursor: pointer;
+    fill: #0066cc;
+    transition: fill 0.2s ease;
+}
+
+#popupLink:hover {
+    fill: #004499;
+    text-decoration: none;
+}
+
+#popupBox {
+    rx: 6px;
+    fill: rgba(255, 255, 255, 0.9);
+    stroke: rgba(0, 0, 0, 0.1);
+    stroke-width: 1px;
+    
+    transition: fill 0.2s ease;
+}
+
+#popupBox:hover {
+    fill: rgba(255, 255, 255, 1.0);
+    stroke: rgba(0, 0, 0, 0.3);
+}
+
+#popupTitle {
+    fill: #000;
+    font-family: sans-serif; 
+    font-size: 15px; 
+    font-weight: bold;
+}
+
+#popupText {
+    fill: #333;
+    font-family: sans-serif; 
+    font-size: 13px;
+}

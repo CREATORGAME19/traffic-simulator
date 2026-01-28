@@ -4,7 +4,7 @@ import (
 	"math/rand/v2"
 )
 
-func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID) *Vehicle {
+func CreateVehicle(id VehicleID, curr_time SimTime, origin RoadNodeID, destination RoadNodeID) *Vehicle {
 	path := []RoadNodeID{origin}
 	v := NewVehicle(
 			id,
@@ -16,6 +16,7 @@ func CreateVehicle(id VehicleID, origin RoadNodeID, destination RoadNodeID) *Veh
 			destination,
 			origin,
 			CreateVehiclePath(&path),
+			curr_time,
 		)
 	return v
 }

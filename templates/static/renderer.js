@@ -320,30 +320,86 @@ class Renderer {
         const t = this.currentTransform;
         var x = 0.0;
         var y = 0.0;
+
+        const createLine = (content, dy) => {
+            const tspan = document.createElementNS(SVG_NS, "tspan");
+            tspan.setAttribute("x", "15");
+            tspan.setAttribute("dy", dy);
+            tspan.textContent = content;
+            return tspan;
+        };
+
+        const text = document.getElementById("popupText");
+        const title = document.getElementById("popupTitle");
+        const link = document.getElementById("popupLink");
+        const rect = document.getElementById("popupBox");
+
+        text.textContent="";
+
         switch (popup.dataset.type){
             case "node":
-                x = this.getRenderX(this.node_data[parseInt(popup.dataset.id)].X);
-                y = this.getRenderY(this.node_data[parseInt(popup.dataset.id)].Y);
-                
+                var data = this.node_data[parseInt(popup.dataset.id)];
+                x = this.getRenderX(data.X);
+                y = this.getRenderY(data.Y);
+                text.appendChild(createLine("X: " + data.X.toFixed(3) + ", Y: "+ data.Y.toFixed(3), "1.5em"));
+                switch (data.AgentType) {
+                    case 0:
+                        var agent_name = 'Intersection';
+                        break;
+                    case 1:
+                        var agent_name = 'Spawn';
+                        break;
+                    case 2:
+                        var agent_name = 'Sink';
+                        break;
+                    case 3:
+                        var agent_name = 'Traffic Light Intersection';
+                        break;
+                    default:
+                        var agent_name = 'Unknown';
+                }
+                text.appendChild(createLine("Type: " + agent_name, "1.5em"));
                 break;
             case "vehicle":
-                x = this.getRenderX(this.vehicle_data[parseInt(popup.dataset.id)].X);
-                y = this.getRenderY(this.vehicle_data[parseInt(popup.dataset.id)].Y);
+                var data = this.vehicle_data[parseInt(popup.dataset.id)];
+                if (data.Status == 0) { //Close popup when vehicle has reached the end!
+                    closePopup();
+                    return;
+                }
+                x = this.getRenderX(data.X);
+                y = this.getRenderY(data.Y);
+                text.appendChild(createLine("X: " + data.X.toFixed(3) + ", Y: "+ data.Y.toFixed(3), "1.5em"));
+                text.appendChild(createLine("Speed: " + data.Speed.toFixed(3) + " m/s", "1.5em"));
+                text.appendChild(createLine("Acceleration: " + data.Acc.toFixed(3) + " m/s2", "1.5em"));
+                text.appendChild(createLine("Start: Node " + data.Origin, "1.5em"));
+                text.appendChild(createLine("Destination: Node " + data.Dest, "1.5em"));
+                text.appendChild(createLine("Spawn Time: " + this.formatTime(data.SpawnTime), "1.5em"));
                 break;
             default:
                 break;
         }
+        link.setAttribute("y",42+(20*text.children.length)); //Position link at the end of popup accordingly
+
+        const w1 = title.getBBox().width;
+        const w2 = text.getBBox().width;
+        const w3 = link.getBBox().width;
+
+        const padding = 30;
+        const newWidth = Math.max(w1, w2, w3) + padding;
+        const newHeight = title.getBBox().height + text.getBBox().height + link.getBBox().height + (12*3);
+        rect.setAttribute("width", newWidth);
+        rect.setAttribute("height", newHeight);
 
         // Inverse scale factor
         const s = 1 / t.k;
 
-        const xPos = x - (65 * s);
-        const yPos = y - (70 * s);
+        const xPos = x - ((newWidth/2) * s);
+        const yPos = y - ((newHeight+15) * s);
 
         popup.setAttribute("transform", `translate(${xPos}, ${yPos}) scale(${s})`);
     }
 
-    createSvgPopup(item_type, item_id, title, content) {
+    createSvgPopup(item_type, item_id, title) {
         const parentSvg = document.getElementById("vehicle-layer");
         
         var oldPopup = document.getElementById("active-popup");
@@ -353,41 +409,51 @@ class Renderer {
         
         const group = document.createElementNS(SVG_NS, "g");
         group.setAttribute("id", "active-popup");
-        
-        const bgColor = "rgba(255, 255, 255, 0.9)";
 
         group.dataset.type = item_type;
         group.dataset.id = item_id;
 
         const rect = document.createElementNS(SVG_NS, "rect");
-        rect.setAttribute("width", "130");
-        rect.setAttribute("height", "55");
-        rect.setAttribute("rx", "6");
-        rect.setAttribute("fill", bgColor);
-        rect.setAttribute("stroke", "rgba(0, 0, 0, 0.1)");
-        rect.setAttribute("stroke-width", "1");
+        rect.setAttribute("width", "160");
+        rect.setAttribute("height", "75"); 
+        rect.setAttribute("id","popupBox");
 
         const text = document.createElementNS(SVG_NS, "text");
         text.setAttribute("x", "15");
         text.setAttribute("y", "22");
-        text.setAttribute("fill", "#000");
-        text.setAttribute("style", "font-family: sans-serif; font-size: 13px; font-weight: bold;");
+        text.setAttribute("id","popupTitle");
         text.textContent = title;
 
         const subText = document.createElementNS(SVG_NS, "text");
         subText.setAttribute("x", "15");
-        subText.setAttribute("y", "42");
-        subText.setAttribute("fill", "#333");
-        subText.setAttribute("style", "font-family: sans-serif; font-size: 11px;");
-        subText.textContent = content;
+        subText.setAttribute("y", "24");
+        subText.setAttribute("id","popupText");
+        subText.textContent = "";
+
+        const linkText = document.createElementNS(SVG_NS, "text");
+        linkText.setAttribute("x", "15");
+        linkText.setAttribute("y", "62");
+        linkText.setAttribute("id","popupLink");
+        linkText.textContent = "See More";
+
+        linkText.addEventListener('click', (event) => {
+            // 1. Prevents the "map" click listener from firing and closing the popup immediately
+            event.stopPropagation(); 
+            
+            // 2. Call your custom function here
+            alert("hello"); 
+        });
 
         group.appendChild(rect);
         group.appendChild(text);
         group.appendChild(subText);
+        group.appendChild(linkText);
         parentSvg.appendChild(group);
 
         this.updateSvgPopup();
 
-        setTimeout(() => {document.getElementById("map").addEventListener('click', closePopup)}, 10);
+        setTimeout(() => {
+            document.getElementById("map").addEventListener('click', closePopup);
+        }, 10);
     }
 }

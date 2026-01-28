@@ -23,42 +23,47 @@ type Message struct {
 
 type VehicleMessage struct {
 	Vehicle_ID VehicleID
-	X, Y float64
-	Status VehicleStatus
-	Time SimTime
+	X, Y       float64
+	Status     VehicleStatus
+	Time       SimTime
+	Speed      float64
+	Acc        float64
+	Origin     RoadNodeID
+	Dest       RoadNodeID
+	SpawnTime  SimTime
 }
 
 type MapSetupMessage struct {
-	Nodes []MapNodeSetupMessage
-	Lanes []MapLaneSetupMessage
+	Nodes            []MapNodeSetupMessage
+	Lanes            []MapLaneSetupMessage
 	ConfigParameters ConfigParameters
 }
 
 type MapNodeSetupMessage struct {
-	Node_ID RoadNodeID
-	X, Y float64
+	Node_ID   RoadNodeID
+	X, Y      float64
 	AgentType StaticAgentType
 }
 
 type MapLaneSetupMessage struct {
-	Lane_ID LaneID
+	Lane_ID                        LaneID
 	Start_X, Start_Y, End_X, End_Y float64
 }
 
 var reader sync.WaitGroup //Only 1 reader and 1 writer web socket at a time
 var writer sync.WaitGroup
 
-func runFrontend(channel chan VehicleInfoDatagram, simrate_chan chan float64, mapsim *Map) {
-	num_record_runs := max(1,int(float64(mapsim.config_parameters.NUM_RUNS)/(mapsim.config_parameters.RECORD_INTERVAL/SIM_TIME_STEP)))
-	vehicle_fetch_history := make([][]VehicleInfoDatagram, num_record_runs)
+func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, mapsim *Map) {
+	num_record_runs := max(1, int(float64(mapsim.config_parameters.NUM_RUNS)/(mapsim.config_parameters.RECORD_INTERVAL/SIM_TIME_STEP)))
+	vehicle_fetch_history := make([][]VehicleInfoResult, num_record_runs)
 	for i := 0; i < num_record_runs; i++ {
-		vehicle_fetch_history[i] = make([]VehicleInfoDatagram, mapsim.config_parameters.MAX_VEHICLES)
+		vehicle_fetch_history[i] = make([]VehicleInfoResult, mapsim.config_parameters.MAX_VEHICLES)
 	}
 
 	current_run := 0
 	vehicles_seen := 0 //Vehicles seen in the run so far
-	current_vehicle_fetch := make([]VehicleInfoDatagram, mapsim.config_parameters.MAX_VEHICLES)
-	lastRecord := SimTime(-1*mapsim.config_parameters.RECORD_INTERVAL)
+	current_vehicle_fetch := make([]VehicleInfoResult, mapsim.config_parameters.MAX_VEHICLES)
+	lastRecord := SimTime(-1 * mapsim.config_parameters.RECORD_INTERVAL)
 
 	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -74,7 +79,7 @@ func runFrontend(channel chan VehicleInfoDatagram, simrate_chan chan float64, ma
 
 		reader.Wait()
 		reader.Add(1) //Only one reader allowed at once
-		
+
 		var webReaderChan chan error = make(chan error)
 		go RunWebReaderLoop(conn, mapsim, webReaderChan, simrate_chan)
 
@@ -110,8 +115,8 @@ func runFrontend(channel chan VehicleInfoDatagram, simrate_chan chan float64, ma
 
 				if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
 					vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
-					if current_vehicle_fetch[0].time-lastRecord > SimTime(mapsim.config_parameters.RECORD_INTERVAL) || AlmostEqual(mapsim.config_parameters.RECORD_INTERVAL, float64(current_vehicle_fetch[0].time-lastRecord)){
-						for i:=0;i<mapsim.config_parameters.MAX_VEHICLES;i++ {
+					if current_vehicle_fetch[0].time-lastRecord > SimTime(mapsim.config_parameters.RECORD_INTERVAL) || AlmostEqual(mapsim.config_parameters.RECORD_INTERVAL, float64(current_vehicle_fetch[0].time-lastRecord)) {
+						for i := 0; i < mapsim.config_parameters.MAX_VEHICLES; i++ {
 							vehicle_fetch_history[current_run][i] = current_vehicle_fetch[i]
 						}
 						current_run++
@@ -126,14 +131,14 @@ func runFrontend(channel chan VehicleInfoDatagram, simrate_chan chan float64, ma
 						return
 					}
 				}
-			}	
+			}
 		}()
 		for { //Checks if frontend websocket is still active periodically
 			if err := SendPingMessage(conn, &writer); err != nil {
 				fmt.Println("Write Error:", err)
 				return
 			}
-			time.Sleep(5*time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	})
 
@@ -151,19 +156,19 @@ func SendLoadingDoneMessage(conn *websocket.Conn, writer *sync.WaitGroup) error 
 	defer writer.Done()
 	writer.Wait()
 	writer.Add(1)
-	return conn.WriteJSON(Message{Type:"loading_done_message", Data: ""})
+	return conn.WriteJSON(Message{Type: "loading_done_message", Data: ""})
 }
 
-func SendWebVehicleMessage(conn *websocket.Conn, writer *sync.WaitGroup, data []VehicleInfoDatagram) error{
+func SendWebVehicleMessage(conn *websocket.Conn, writer *sync.WaitGroup, data []VehicleInfoResult) error {
 	defer writer.Done()
 	writer.Wait()
 	writer.Add(1)
 
 	msg := make([]VehicleMessage, len(data))
-	for i:=0;i<len(data);i++ {
-		msg[i] = VehicleMessage{Vehicle_ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status}
+	for i := 0; i < len(data); i++ {
+		msg[i] = VehicleMessage{Vehicle_ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status, Speed: data[i].speed, Acc: data[i].acc, Origin: data[i].origin, Dest: data[i].dest, SpawnTime: data[i].spawn_time}
 	}
-	return conn.WriteJSON(Message{Type:"vehicle_message", Data: msg})
+	return conn.WriteJSON(Message{Type: "vehicle_message", Data: msg})
 }
 
 func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *Map) error {
@@ -171,14 +176,14 @@ func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *M
 	writer.Wait()
 	writer.Add(1)
 
-	msg := MapSetupMessage{Nodes: make([]MapNodeSetupMessage,len(mapsim.nodes)), Lanes: make([]MapLaneSetupMessage, len(mapsim.lanes)), ConfigParameters: *mapsim.config_parameters}
-	for n:=0;n<len(mapsim.nodes);n++ {
+	msg := MapSetupMessage{Nodes: make([]MapNodeSetupMessage, len(mapsim.nodes)), Lanes: make([]MapLaneSetupMessage, len(mapsim.lanes)), ConfigParameters: *mapsim.config_parameters}
+	for n := 0; n < len(mapsim.nodes); n++ {
 		msg.Nodes[n] = MapNodeSetupMessage{Node_ID: mapsim.nodes[n].id, X: mapsim.nodes[n].pos.x, Y: mapsim.nodes[n].pos.y, AgentType: mapsim.nodes[n].agent.Descriptor()}
 	}
-	for l:=0;l<len(mapsim.lanes);l++ {
+	for l := 0; l < len(mapsim.lanes); l++ {
 		msg.Lanes[l] = MapLaneSetupMessage{Lane_ID: mapsim.lanes[l].id, Start_X: mapsim.lanes[l].start_pos.x, Start_Y: mapsim.lanes[l].start_pos.y, End_X: mapsim.lanes[l].end_pos.x, End_Y: mapsim.lanes[l].end_pos.y}
 	}
-	return conn.WriteJSON(Message{Type:"map_setup_message", Data: msg})
+	return conn.WriteJSON(Message{Type: "map_setup_message", Data: msg})
 }
 
 func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan error, simrate_chan chan float64) {
@@ -221,19 +226,19 @@ func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan erro
 	}
 }
 
-func ReadWebMessage(conn *websocket.Conn) (*Message,error) {
+func ReadWebMessage(conn *websocket.Conn) (*Message, error) {
 	var msg Message
 	err := conn.ReadJSON(&msg)
 	if err != nil {
-		return &Message{Type:"",Data:nil}, err
+		return &Message{Type: "", Data: nil}, err
 	}
 	return &msg, nil
 }
 
-func SendPingMessage(conn *websocket.Conn, writer *sync.WaitGroup) (error) {
+func SendPingMessage(conn *websocket.Conn, writer *sync.WaitGroup) error {
 	defer writer.Done()
 	writer.Wait()
 	writer.Add(1)
 
-	return conn.WriteJSON(Message{Type:"ping_message", Data: ""})
+	return conn.WriteJSON(Message{Type: "ping_message", Data: ""})
 }

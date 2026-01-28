@@ -31,6 +31,7 @@ type Vehicle struct {
 	acc         float64
 	path        *VehiclePath
 	lastFetch   SimTime
+	spawnTime   SimTime
 }
 
 type VehicleProp struct {
@@ -47,7 +48,7 @@ func NewVehicleProp(max_speed float64, max_acc float64, minimum_gap_size float64
 	}
 }
 
-func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin RoadNodeID, path VehiclePath) *Vehicle {
+func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin RoadNodeID, path VehiclePath, time SimTime) *Vehicle {
 	res := Vehicle{
 		id:          id,
 		prop:        prop,
@@ -58,6 +59,7 @@ func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin R
 		acc:         0,
 		path:        &path,
 		lastFetch:   -1,
+		spawnTime:   time,
 	}
 	return &res
 }
@@ -106,37 +108,42 @@ type VehicleFetchResult struct {
 	Time       SimTime
 	Vehicle_ID VehicleID
 	Status     VehicleStatus
+	Speed      float64
+	Acc        float64
+	Origin     RoadNodeID
+	Dest       RoadNodeID
+	SpawnTime  SimTime
 }
 
-func (a *Vehicle) FindNextLanePosition(mapsim *Map, curr_node_id RoadNodeID) (VehiclePosition,error) {
+func (a *Vehicle) FindNextLanePosition(mapsim *Map, curr_node_id RoadNodeID) (VehiclePosition, error) {
 	lanes_out := mapsim.nodes[curr_node_id].lanes_out
 	if len(lanes_out) <= 0 {
 		return VehiclePosition{lane_id: a.pos.lane_id, progress: 1}, fmt.Errorf("Error: Vehicle has hit a deadend!")
 		//This is reached if vehicle hits a deadend!
 	}
-	if a.NextNodeVehiclePathExists() && a.GetNextNodeVehiclePath() == curr_node_id{
+	if a.NextNodeVehiclePathExists() && a.GetNextNodeVehiclePath() == curr_node_id {
 		a.IncrementVehiclePathIndex()
 	}
 
 	if !a.NextNodeVehiclePathExists() {
-		if err := a.CalculateVehiclePath(mapsim,curr_node_id); err != nil {
+		if err := a.CalculateVehiclePath(mapsim, curr_node_id); err != nil {
 			return VehiclePosition{}, err
 		}
 	}
 
 	next_node := a.GetNextNodeVehiclePath()
-	new_lane_id,err := a.FindLaneWithNextNode(mapsim, next_node, curr_node_id)
+	new_lane_id, err := a.FindLaneWithNextNode(mapsim, next_node, curr_node_id)
 	if err != nil {
-		return VehiclePosition{},err
+		return VehiclePosition{}, err
 	}
 
-	return VehiclePosition{lane_id: new_lane_id, progress: 0},nil
+	return VehiclePosition{lane_id: new_lane_id, progress: 0}, nil
 }
 
-func (a *Vehicle) FindLaneWithNextNode(mapsim *Map, next_node RoadNodeID, curr_node_id RoadNodeID) (LaneID,error) { //Find the next lane along the vehicle's path
+func (a *Vehicle) FindLaneWithNextNode(mapsim *Map, next_node RoadNodeID, curr_node_id RoadNodeID) (LaneID, error) { //Find the next lane along the vehicle's path
 	lanes_out := mapsim.nodes[curr_node_id].lanes_out
 	lane_candidates := []LaneID{}
-	for i:=0;i<len(lanes_out);i++ {
+	for i := 0; i < len(lanes_out); i++ {
 		if mapsim.lanes[lanes_out[i]].to_node == next_node {
 			lane_candidates = append(lane_candidates, lanes_out[i])
 		}
@@ -152,14 +159,14 @@ func (a *Vehicle) GetCurrentLane(m *Map) *Lane {
 	return &m.lanes[lane_id]
 }
 
-func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, pos VehiclePosition) (VehiclePosition,error) {
+func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, pos VehiclePosition) (VehiclePosition, error) {
 	if a.HasReachedEndLane() {
 		curr_node_id := m.lanes[a.pos.lane_id].to_node
-		desired_pos ,err := a.FindNextLanePosition(m, curr_node_id)
+		desired_pos, err := a.FindNextLanePosition(m, curr_node_id)
 		if err != nil {
 			return VehiclePosition{}, err
 		}
-		if a.isLaneFreeAtPos(m, desired_pos) && m.nodes[curr_node_id].agent.CanVehicleProceed(m, new_time, a, desired_pos.lane_id){
+		if a.isLaneFreeAtPos(m, desired_pos) && m.nodes[curr_node_id].agent.CanVehicleProceed(m, new_time, a, desired_pos.lane_id) {
 			a.SwitchToNewLane(m, desired_pos) //If lane is free to enter, then proceed to the requested position
 			pos = desired_pos
 		} else { //Otherwise wait
@@ -172,10 +179,10 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	total_lane_distance := curr_lane.distance
 	current_distance := pos.progress * total_lane_distance
 
-	new_speed := max(0,a.CalculateSpeed(new_time-old_time))
-	distance_travelled := max(0,a.CalculateDistanceTravelled(new_time-old_time))
+	new_speed := max(0, a.CalculateSpeed(new_time-old_time))
+	distance_travelled := max(0, a.CalculateDistanceTravelled(new_time-old_time))
 
-	gap_ahead := max(0,total_lane_distance - distance_travelled - current_distance)
+	gap_ahead := max(0, total_lane_distance-distance_travelled-current_distance)
 	next_vehicle := curr_lane.FindNextVehicleAhead(m, a)
 	if next_vehicle != nil {
 		gap_ahead = CalculateDistance(a.GetPosXY(m), next_vehicle.GetPosXY(m))
@@ -201,27 +208,27 @@ func (a *Vehicle) CalculateDistanceTravelled(time_delta SimTime) float64 { //Lin
 
 func (a *Vehicle) CalculateAcceleration(gap_ahead float64, next_vehicle *Vehicle, time_delta SimTime) float64 {
 	stopping_gap := max(a.prop.minimum_gap_size, 2*a.speed) //2s stop gap
-	new_acc := ((a.prop.max_speed-a.speed)/a.prop.max_speed)*a.prop.max_acc
+	new_acc := ((a.prop.max_speed - a.speed) / a.prop.max_speed) * a.prop.max_acc
 	if next_vehicle != nil {
 		vehicle_ahead_next_advance := next_vehicle.CalculateDistanceTravelled(time_delta)
 		if gap_ahead < stopping_gap {
-			dist_travelled := gap_ahead-stopping_gap-vehicle_ahead_next_advance
+			dist_travelled := gap_ahead - stopping_gap - vehicle_ahead_next_advance
 			if dist_travelled > 0 {
-				new_acc = (math.Pow(next_vehicle.speed,2)-math.Pow(a.speed, 2)) / (2 * dist_travelled)
+				new_acc = (math.Pow(next_vehicle.speed, 2) - math.Pow(a.speed, 2)) / (2 * dist_travelled)
 			} else {
-				new_acc = min(0,((next_vehicle.speed*0.1)-a.speed)/float64(time_delta))
+				new_acc = min(0, ((next_vehicle.speed*0.1)-a.speed)/float64(time_delta))
 				//Can be bad if the vehicle behind goes way too fast!
 			}
-		} else if gap_ahead <= 3*stopping_gap{
+		} else if gap_ahead <= 3*stopping_gap {
 			dist_travelled := vehicle_ahead_next_advance + gap_ahead - stopping_gap
-			new_acc = (math.Pow(next_vehicle.speed,2)-math.Pow(a.speed, 2)) / (2 * dist_travelled)
-		} 
-	} else if AlmostEqual(gap_ahead,0) {
+			new_acc = (math.Pow(next_vehicle.speed, 2) - math.Pow(a.speed, 2)) / (2 * dist_travelled)
+		}
+	} else if AlmostEqual(gap_ahead, 0) {
 		new_acc = 0
 	} else if gap_ahead < 3*stopping_gap {
-		new_acc = (-math.Pow(a.speed,2))/(2*gap_ahead)
+		new_acc = (-math.Pow(a.speed, 2)) / (2 * gap_ahead)
 		if a.speed < 2 {
-			new_acc = max(new_acc,(2-a.speed)/float64(time_delta))
+			new_acc = max(new_acc, (2-a.speed)/float64(time_delta))
 		}
 	}
 	return new_acc
@@ -236,7 +243,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 	if curr_pos.lane_id < 0 { //Case when Vehicle not initialised
 		origin_node_id := a.origin
 		curr_node := mapsim.nodes[origin_node_id]
-		new_pos,err :=  a.FindNextLanePosition(mapsim, curr_node.id)
+		new_pos, err := a.FindNextLanePosition(mapsim, curr_node.id)
 		if err != nil {
 			println(err)
 			return err
@@ -268,7 +275,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 		sink.DestroyVehicle(mapsim, time, a)
 	}
 
-	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id, Status: VehicleInTransit}
+	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id, Status: VehicleInTransit, Speed: a.speed, Acc: a.acc, Origin: a.origin, Dest: a.destination, SpawnTime: a.spawnTime}
 	return nil
 }
 
@@ -298,7 +305,7 @@ func AlmostEqual(a float64, b float64) bool {
 }
 
 func (a *Vehicle) HasReachedEndLane() bool {
-	return AlmostEqual(a.pos.progress,1)
+	return AlmostEqual(a.pos.progress, 1)
 }
 
 type VehiclePath struct {
@@ -322,6 +329,6 @@ func (a *Vehicle) NextNodeVehiclePathExists() bool {
 	return len(*a.path.path_array) > a.path.curr_index
 }
 
-func (a *Vehicle) GetNextNodeVehiclePath() RoadNodeID{
+func (a *Vehicle) GetNextNodeVehiclePath() RoadNodeID {
 	return (*a.path.path_array)[a.path.curr_index]
 }
