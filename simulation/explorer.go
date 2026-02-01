@@ -60,7 +60,8 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 		vehicle_fetch_history[i] = make([]VehicleInfoResult, mapsim.config_parameters.MAX_VEHICLES)
 	}
 
-	current_run := 0
+	current_run := new(int)
+	*current_run = 0
 	vehicles_seen := 0 //Vehicles seen in the run so far
 	current_vehicle_fetch := make([]VehicleInfoResult, mapsim.config_parameters.MAX_VEHICLES)
 	lastRecord := SimTime(-1 * mapsim.config_parameters.RECORD_INTERVAL)
@@ -81,7 +82,7 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 		reader.Add(1) //Only one reader allowed at once
 
 		var webReaderChan chan error = make(chan error)
-		go RunWebReaderLoop(conn, mapsim, webReaderChan, simrate_chan)
+		go RunWebReaderLoop(conn, mapsim, webReaderChan, simrate_chan, &vehicle_fetch_history, current_run)
 
 		if err := SendMapSetupMessage(conn, &writer, mapsim); err != nil {
 			fmt.Println("Write Error:", err)
@@ -93,7 +94,7 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 		}
 
 		run := 0
-		for current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
+		for *current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
 			if err := SendWebVehicleMessage(conn, &writer, vehicle_fetch_history[run]); err != nil {
 				fmt.Println("Write Error:", err)
 				return
@@ -117,9 +118,9 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 					vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
 					if current_vehicle_fetch[0].time-lastRecord > SimTime(mapsim.config_parameters.RECORD_INTERVAL) || AlmostEqual(mapsim.config_parameters.RECORD_INTERVAL, float64(current_vehicle_fetch[0].time-lastRecord)) {
 						for i := 0; i < mapsim.config_parameters.MAX_VEHICLES; i++ {
-							vehicle_fetch_history[current_run][i] = current_vehicle_fetch[i]
+							vehicle_fetch_history[*current_run][i] = current_vehicle_fetch[i]
 						}
-						current_run++
+						*current_run++
 						lastRecord = current_vehicle_fetch[0].time
 					}
 					if err := SendWebVehicleMessage(conn, &writer, current_vehicle_fetch); err != nil {
@@ -171,6 +172,19 @@ func SendWebVehicleMessage(conn *websocket.Conn, writer *sync.WaitGroup, data []
 	return conn.WriteJSON(Message{Type: "vehicle_message", Data: msg})
 }
 
+func SendVehicleSpeedMessage(conn *websocket.Conn, vehicle_fetch_history *[][]VehicleInfoResult, spawn_index int, current_run *int, vehicle_id int) error {
+	defer writer.Done()
+	writer.Wait()
+	writer.Add(1)
+
+	msg := make([]VehicleMessage, *current_run-spawn_index)
+	for i := 0; i <= *current_run -1 - spawn_index; i++ {
+		data := (*vehicle_fetch_history)[i+spawn_index][vehicle_id]
+		msg[i] = VehicleMessage{Vehicle_ID: data.id, X: data.x, Y: data.y, Time: data.time, Status: data.status, Speed: data.speed, Acc: data.acc, Origin: data.origin, Dest: data.dest, SpawnTime: data.spawn_time}
+	}
+	return conn.WriteJSON(Message{Type: "vehicle_speed_message", Data: msg})
+} 
+
 func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *Map) error {
 	defer writer.Done()
 	writer.Wait()
@@ -186,7 +200,7 @@ func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *M
 	return conn.WriteJSON(Message{Type: "map_setup_message", Data: msg})
 }
 
-func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan error, simrate_chan chan float64) {
+func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan error, simrate_chan chan float64, vehicle_fetch_history *[][]VehicleInfoResult, current_run *int) {
 	defer func() {
 		if mapsim.config_parameters.SIM_RATE == 0 {
 			mapsim.config_parameters.SIM_RATE = 1
@@ -217,6 +231,21 @@ func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan erro
 				//Nothing
 			default:
 				//Nothing
+			}
+		case "fetch_vehicle_speed":
+			vehicle_id, ok := msg.Data.(float64)
+			if !ok {
+				fmt.Println("Error: vehicle_id is not an int!")
+				webReaderChan <- fmt.Errorf("Error: vehicle_id is not an int!")
+				return
+			}
+			lastSpawn := (*vehicle_fetch_history)[*current_run -1][int(vehicle_id)].spawn_time
+			curr_time := (*vehicle_fetch_history)[*current_run -1][int(vehicle_id)].time
+			spawn_index := (*current_run-1) - int((curr_time-lastSpawn)/SimTime(mapsim.config_parameters.RECORD_INTERVAL))
+			if err := SendVehicleSpeedMessage(conn, vehicle_fetch_history, spawn_index, current_run, int(vehicle_id)); err != nil {
+				fmt.Println(err)
+				webReaderChan <- err
+				return
 			}
 		default:
 			fmt.Println("Read Error: Unknown Web Message!")

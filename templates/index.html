@@ -96,7 +96,10 @@
                 hideLoadingBanner();
                 break;
             case "ping_message": //Ignore
-                break
+                break;
+            case "vehicle_speed_message":
+                renderer.renderSpeedGraph(msg_data);
+                break;
             default:
                 console.log("Error: Unknown message received!");
         }

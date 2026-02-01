@@ -440,8 +440,10 @@ class Renderer {
             // 1. Prevents the "map" click listener from firing and closing the popup immediately
             event.stopPropagation(); 
             
+            const type = group.dataset.type;
+            const id = group.dataset.id;
             // 2. Call your custom function here
-            alert("hello"); 
+            this.showDetailsOverlay(type,id); 
         });
 
         group.appendChild(rect);
@@ -455,5 +457,136 @@ class Renderer {
         setTimeout(() => {
             document.getElementById("map").addEventListener('click', closePopup);
         }, 10);
+    }
+
+    showDetailsOverlay(type, id) {
+        if (this.sim_rate != 0) {
+            this.PauseSimRate()
+        }
+        const overlay = document.createElement('div');
+        overlay.id = 'details-overlay';
+
+        const content = document.createElement('div');
+        content.id = 'details-overlay-content';
+
+        const data = type === "node" ? this.node_data[id] : this.vehicle_data[id];
+
+        content.innerHTML = `
+            <h2>${type.toUpperCase()} ${id} DETAILS</h2>
+            <div id="chart-container" style="width: 100%; height: 300px; margin: 20px 0;"></div>
+            <button id="closeOverlay" style="padding: 10px 20px; cursor: pointer;">Close</button>
+        `;
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        if (type === "vehicle") {
+            const vehicleSpeedData = this.requestVehicleSpeedData(id);
+        }
+
+        const close = () => overlay.remove();
+        document.getElementById('closeOverlay').onclick = close;
+        overlay.onclick = (e) => { if (e.target === overlay) close(); };
+    }
+
+    renderSpeedGraph(vehicleSpeedData) {
+        const margin = { top: 20, right: 30, bottom: 50, left: 60 },
+            width = 800 - margin.left - margin.right,
+            height = 350 - margin.top - margin.bottom;
+
+        const svg = d3.select("#chart-container")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("viewBox", `0 0 800 350`)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleLinear()
+            .domain(d3.extent(vehicleSpeedData, d => d.Time))
+            .range([0, width]);
+
+        const y = d3.scaleLinear()
+            .domain([0, 40]) // Max speed 40 m/s
+            .range([height, 0]);
+
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).ticks(10))
+            .append("text")
+            .attr("x", width / 2)
+            .attr("y", 40)
+            .attr("fill", "black")
+            .style("text-anchor", "middle")
+            .text("Time (seconds)");
+
+        svg.append("g")
+            .call(d3.axisLeft(y))
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -45)
+            .attr("x", -height / 2)
+            .attr("fill", "black")
+            .style("text-anchor", "middle")
+            .text("Speed (m/s)");
+
+        const line = d3.line()
+            .x(d => x(d.Time))
+            .y(d => y(d.Speed))
+            .curve(d3.curveMonotoneX);
+
+        svg.append("path")
+            .datum(vehicleSpeedData)
+            .attr("fill", "none")
+            .attr("stroke", "#0066cc")
+            .attr("stroke-width", 3)
+            .attr("d", line);
+
+        const tooltip = d3.select("#chart-container")
+            .append("div")
+            .style("position", "absolute")
+            .style("visibility", "hidden")
+            .style("background", "rgba(0, 0, 0, 0.8)")
+            .style("color", "#fff")
+            .style("padding", "8px")
+            .style("border-radius", "4px")
+            .style("font-size", "12px")
+            .style("pointer-events", "none")
+            .style("z-index", "10001");
+
+        svg.selectAll("circle")
+            .data(vehicleSpeedData)
+            .enter()
+            .append("circle")
+            .attr("cx", d => x(d.Time))
+            .attr("cy", d => y(d.Speed))
+            .attr("r", 6) // Slightly larger for easier clicking
+            .attr("fill", "#0066cc")
+            .style("cursor", "pointer")
+            .on("click", function(event, d) {
+                const mouseX = event.clientX;
+                const mouseY = event.clientY;
+
+                tooltip.html(`Time: ${d.Time.toFixed(3)}s<br>Speed: ${d.Speed.toFixed(3)} m/s`)
+                    .style("visibility", "visible")
+                    .style("position", "fixed") 
+                    .style("top", (mouseY - 60) + "px")
+                    .style("left", (mouseX - 60) + "px");
+
+                d3.selectAll("circle").attr("fill", "#0066cc").attr("r", 6);
+                d3.select(this).attr("fill", "#ff9900").attr("r", 8);
+                
+                event.stopPropagation(); // Prevent overlay from closing if listener exists
+            });
+
+        svg.on("click", () => tooltip.style("visibility", "hidden"));
+    }
+
+    requestVehicleSpeedData(vehicle_id) {
+        this.web_socket.send(
+            JSON.stringify(
+                {Type: "fetch_vehicle_speed", Data: parseFloat(vehicle_id)}
+            )
+        );
     }
 }
