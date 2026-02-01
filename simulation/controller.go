@@ -88,11 +88,11 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 			mapsim.nodes[a].agent.Poke(mapsim, sim_time)
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
-			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, VehicleID(v))
+			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, mapsim.GetRealVehicleID(v))
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			fetchresult := <-vehicle_channel
-			vehicle_locations[fetchresult.Vehicle_ID] = VehicleInfoResult{fetchresult.Vehicle_ID, fetchresult.X, fetchresult.Y, fetchresult.Time, fetchresult.Status, fetchresult.Speed, fetchresult.Acc, fetchresult.Origin, fetchresult.Dest, fetchresult.SpawnTime}
+			vehicle_locations[mapsim.GetMapArrayVehicleIDIndex(fetchresult.Vehicle_ID)] = VehicleInfoResult{fetchresult.Vehicle_ID, fetchresult.X, fetchresult.Y, fetchresult.Time, fetchresult.Status, fetchresult.Speed, fetchresult.Acc, fetchresult.Origin, fetchresult.Dest, fetchresult.SpawnTime}
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			frontend_chan <- vehicle_locations[v]

@@ -75,7 +75,7 @@ func (a *Vehicle) CheckAndSetPosition(m *Map, lane_id LaneID, progress float64) 
 	}
 	a.pos = desired_pos
 	new_lane := a.GetCurrentLane(m)
-	new_lane.AddVehicleToQueue(a)
+	new_lane.AddVehicleToQueue(a, m)
 	return true
 }
 
@@ -281,9 +281,9 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 
 func (a *Vehicle) SwitchToNewLane(m *Map, new_pos VehiclePosition) {
 	new_lane := m.lanes[new_pos.lane_id]
-	new_lane.AddVehicleToQueue(a)
+	new_lane.AddVehicleToQueue(a, m)
 	old_lane := a.GetCurrentLane(m)
-	old_lane.RemoveVehicleFromQueue(a)
+	old_lane.RemoveVehicleFromQueue(a, m)
 }
 
 func (a *Vehicle) hasReachedDestination(m *Map) bool {

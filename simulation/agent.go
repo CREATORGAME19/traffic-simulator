@@ -119,7 +119,9 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 			//println("Vehicle limit reached!") //WARNING
 			return
 		}
-		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(mapsim.vehicles.next_empty), time, a.road_node_id, mapsim.FindADestinationNode())
+		next_vehicle_id := mapsim.GetRealVehicleID(mapsim.vehicles.next_empty)
+		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(next_vehicle_id), time, a.road_node_id, mapsim.FindADestinationNode())
+		mapsim.vehicles.vehicle_id_index_array[mapsim.vehicles.next_empty]++
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
 		a.params.lastSpawnTime = time
 	}
@@ -155,9 +157,9 @@ func (a *SinkAgent) Poke(mapsim *Map, time SimTime) {
 
 func (a *SinkAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) {
 	current_lane := vehicle.GetCurrentLane(mapsim)
-	current_lane.RemoveVehicleFromQueue(vehicle)
-	mapsim.vehicles.vehicle_array[vehicle.id] = nil
-	mapsim.vehicles.next_empty = min(int(vehicle.id), mapsim.vehicles.next_empty)
+	current_lane.RemoveVehicleFromQueue(vehicle, mapsim)
+	mapsim.vehicles.vehicle_array[mapsim.GetMapArrayVehicleIDIndex(vehicle.id)] = nil
+	mapsim.vehicles.next_empty = min(mapsim.GetMapArrayVehicleIDIndex(vehicle.id), mapsim.vehicles.next_empty)
 }
 
 func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
@@ -170,8 +172,8 @@ type TrafficLightIntersectionAgent struct {
 }
 
 type TrafficLightIntersectionAgentParams struct {
-	time_intervals []SimTime
-	time_interval_index int
+	time_intervals           []SimTime
+	time_interval_index      int
 	time_interval_lastChange SimTime
 }
 

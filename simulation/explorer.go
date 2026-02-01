@@ -22,15 +22,15 @@ type Message struct {
 }
 
 type VehicleMessage struct {
-	Vehicle_ID VehicleID
-	X, Y       float64
-	Status     VehicleStatus
-	Time       SimTime
-	Speed      float64
-	Acc        float64
-	Origin     RoadNodeID
-	Dest       RoadNodeID
-	SpawnTime  SimTime
+	ID        VehicleID
+	X, Y      float64
+	Status    VehicleStatus
+	Time      SimTime
+	Speed     float64
+	Acc       float64
+	Origin    RoadNodeID
+	Dest      RoadNodeID
+	SpawnTime SimTime
 }
 
 type MapSetupMessage struct {
@@ -40,13 +40,13 @@ type MapSetupMessage struct {
 }
 
 type MapNodeSetupMessage struct {
-	Node_ID   RoadNodeID
+	ID        RoadNodeID
 	X, Y      float64
 	AgentType StaticAgentType
 }
 
 type MapLaneSetupMessage struct {
-	Lane_ID                        LaneID
+	ID                             LaneID
 	Start_X, Start_Y, End_X, End_Y float64
 }
 
@@ -111,7 +111,7 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 		}
 		go func() {
 			for data := range channel { //Reader loop for controller channel
-				current_vehicle_fetch[data.id] = data
+				current_vehicle_fetch[mapsim.GetMapArrayVehicleIDIndex(data.id)] = data
 				vehicles_seen++
 
 				if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
@@ -167,7 +167,7 @@ func SendWebVehicleMessage(conn *websocket.Conn, writer *sync.WaitGroup, data []
 
 	msg := make([]VehicleMessage, len(data))
 	for i := 0; i < len(data); i++ {
-		msg[i] = VehicleMessage{Vehicle_ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status, Speed: data[i].speed, Acc: data[i].acc, Origin: data[i].origin, Dest: data[i].dest, SpawnTime: data[i].spawn_time}
+		msg[i] = VehicleMessage{ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status, Speed: data[i].speed, Acc: data[i].acc, Origin: data[i].origin, Dest: data[i].dest, SpawnTime: data[i].spawn_time}
 	}
 	return conn.WriteJSON(Message{Type: "vehicle_message", Data: msg})
 }
@@ -178,12 +178,12 @@ func SendVehicleSpeedMessage(conn *websocket.Conn, vehicle_fetch_history *[][]Ve
 	writer.Add(1)
 
 	msg := make([]VehicleMessage, *current_run-spawn_index)
-	for i := 0; i <= *current_run -1 - spawn_index; i++ {
+	for i := 0; i <= *current_run-1-spawn_index; i++ {
 		data := (*vehicle_fetch_history)[i+spawn_index][vehicle_id]
-		msg[i] = VehicleMessage{Vehicle_ID: data.id, X: data.x, Y: data.y, Time: data.time, Status: data.status, Speed: data.speed, Acc: data.acc, Origin: data.origin, Dest: data.dest, SpawnTime: data.spawn_time}
+		msg[i] = VehicleMessage{ID: data.id, X: data.x, Y: data.y, Time: data.time, Status: data.status, Speed: data.speed, Acc: data.acc, Origin: data.origin, Dest: data.dest, SpawnTime: data.spawn_time}
 	}
 	return conn.WriteJSON(Message{Type: "vehicle_speed_message", Data: msg})
-} 
+}
 
 func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *Map) error {
 	defer writer.Done()
@@ -192,10 +192,10 @@ func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *M
 
 	msg := MapSetupMessage{Nodes: make([]MapNodeSetupMessage, len(mapsim.nodes)), Lanes: make([]MapLaneSetupMessage, len(mapsim.lanes)), ConfigParameters: *mapsim.config_parameters}
 	for n := 0; n < len(mapsim.nodes); n++ {
-		msg.Nodes[n] = MapNodeSetupMessage{Node_ID: mapsim.nodes[n].id, X: mapsim.nodes[n].pos.x, Y: mapsim.nodes[n].pos.y, AgentType: mapsim.nodes[n].agent.Descriptor()}
+		msg.Nodes[n] = MapNodeSetupMessage{ID: mapsim.nodes[n].id, X: mapsim.nodes[n].pos.x, Y: mapsim.nodes[n].pos.y, AgentType: mapsim.nodes[n].agent.Descriptor()}
 	}
 	for l := 0; l < len(mapsim.lanes); l++ {
-		msg.Lanes[l] = MapLaneSetupMessage{Lane_ID: mapsim.lanes[l].id, Start_X: mapsim.lanes[l].start_pos.x, Start_Y: mapsim.lanes[l].start_pos.y, End_X: mapsim.lanes[l].end_pos.x, End_Y: mapsim.lanes[l].end_pos.y}
+		msg.Lanes[l] = MapLaneSetupMessage{ID: mapsim.lanes[l].id, Start_X: mapsim.lanes[l].start_pos.x, Start_Y: mapsim.lanes[l].start_pos.y, End_X: mapsim.lanes[l].end_pos.x, End_Y: mapsim.lanes[l].end_pos.y}
 	}
 	return conn.WriteJSON(Message{Type: "map_setup_message", Data: msg})
 }
@@ -239,9 +239,9 @@ func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan erro
 				webReaderChan <- fmt.Errorf("Error: vehicle_id is not an int!")
 				return
 			}
-			lastSpawn := (*vehicle_fetch_history)[*current_run -1][int(vehicle_id)].spawn_time
-			curr_time := (*vehicle_fetch_history)[*current_run -1][int(vehicle_id)].time
-			spawn_index := (*current_run-1) - int((curr_time-lastSpawn)/SimTime(mapsim.config_parameters.RECORD_INTERVAL))
+			lastSpawn := (*vehicle_fetch_history)[*current_run-1][int(vehicle_id)].spawn_time
+			curr_time := (*vehicle_fetch_history)[*current_run-1][int(vehicle_id)].time
+			spawn_index := (*current_run - 1) - int((curr_time-lastSpawn)/SimTime(mapsim.config_parameters.RECORD_INTERVAL))
 			if err := SendVehicleSpeedMessage(conn, vehicle_fetch_history, spawn_index, current_run, int(vehicle_id)); err != nil {
 				fmt.Println(err)
 				webReaderChan <- err

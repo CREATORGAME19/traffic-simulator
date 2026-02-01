@@ -184,7 +184,7 @@ class Renderer {
                 node.setAttribute("cy", this.getRenderY(this.node_data[i].Y));
                 node.setAttribute("style", 'pointer-events: all;cursor: pointer;');
                 node.addEventListener("click", () => { 
-                    this.createSvgPopup("node", i, `Node ${i}`, `X: ${this.node_data[i].X || 0}, Y: ${this.node_data[i].Y || 0}`);
+                    this.createSvgPopup("node", i, `Node ${this.node_data[i].ID}`, `X: ${this.node_data[i].X || 0}, Y: ${this.node_data[i].Y || 0}`);
                 });
                 switch (this.node_data[i].AgentType) {
                     case 0:
@@ -225,7 +225,7 @@ class Renderer {
                 vehicle.setAttribute("href", '/static/images/bus-logo.png');
                 vehicle.setAttribute("style", 'pointer-events: all;cursor: pointer;');
                 vehicle.addEventListener("click", () => { 
-                    this.createSvgPopup("vehicle", i, `Vehicle ${i}`, `X: ${this.vehicle_data[i].X || 0}, Y: ${this.vehicle_data[i].Y || 0}`);
+                    this.createSvgPopup("vehicle", i, `Vehicle ${this.vehicle_data[i].ID}`, `X: ${this.vehicle_data[i].X || 0}, Y: ${this.vehicle_data[i].Y || 0}`);
                 });
 
                 document.getElementById("vehicle-layer").appendChild(vehicle);
@@ -472,7 +472,7 @@ class Renderer {
         const data = type === "node" ? this.node_data[id] : this.vehicle_data[id];
 
         content.innerHTML = `
-            <h2>${type.toUpperCase()} ${id} DETAILS</h2>
+            <h2>${type.toUpperCase()} ${data.ID} DETAILS</h2>
             <div id="chart-container" style="width: 100%; height: 300px; margin: 20px 0;"></div>
             <button id="closeOverlay" style="padding: 10px 20px; cursor: pointer;">Close</button>
         `;

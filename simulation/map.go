@@ -55,8 +55,9 @@ func CalculateDistance(p1 Position, p2 Position) float64 {
 }
 
 type VehicleDB struct {
-	vehicle_array []*Vehicle
-	next_empty    int
+	vehicle_array          []*Vehicle
+	next_empty             int
+	vehicle_id_index_array []int
 }
 
 func FindNextEmptyVehicles(mapsim *Map) int {
@@ -79,7 +80,7 @@ func InitialiseMap(v []RoadNode, l []Lane, config_parameters *ConfigParameters) 
 	return &Map{
 		nodes:             v,
 		lanes:             l,
-		vehicles:          VehicleDB{vehicle_array: make([]*Vehicle, config_parameters.MAX_VEHICLES), next_empty: 0},
+		vehicles:          VehicleDB{vehicle_array: make([]*Vehicle, config_parameters.MAX_VEHICLES), next_empty: 0, vehicle_id_index_array: make([]int, config_parameters.MAX_VEHICLES)},
 		config_parameters: config_parameters,
 	}
 }
@@ -104,7 +105,7 @@ func (m *Map) FindADestinationNode() RoadNodeID {
 
 type VehicleLaneQueue struct {
 	vehicles []*Vehicle
-	usage int64
+	usage    int64
 }
 
 func EmptyVehicleLaneQueue(config_parameters *ConfigParameters) *VehicleLaneQueue {
@@ -143,16 +144,24 @@ func (l *Lane) FindNextVehicleAheadFromPos(m *Map, desired_pos VehiclePosition) 
 	return closest_vehicle
 }
 
-func (l *Lane) RemoveVehicleFromQueue(v *Vehicle) {
-	l.vehicle_queue.vehicles[v.id] = nil
+func (l *Lane) RemoveVehicleFromQueue(v *Vehicle, m *Map) {
+	l.vehicle_queue.vehicles[m.GetMapArrayVehicleIDIndex(v.id)] = nil
 	l.vehicle_queue.usage -= 1
 }
 
-func (l *Lane) AddVehicleToQueue(v *Vehicle) {
-	if l.vehicle_queue.vehicles[v.id] != nil {
+func (l *Lane) AddVehicleToQueue(v *Vehicle, m *Map) {
+	if l.vehicle_queue.vehicles[m.GetMapArrayVehicleIDIndex(v.id)] != nil {
 		fmt.Println("Error: Vehicle queue", v.id, "is not empty!")
 		return
 	}
-	l.vehicle_queue.vehicles[v.id] = v
+	l.vehicle_queue.vehicles[m.GetMapArrayVehicleIDIndex(v.id)] = v
 	l.vehicle_queue.usage++
+}
+
+func (m *Map) GetMapArrayVehicleIDIndex(v VehicleID) int {
+	return int(v) % m.config_parameters.MAX_VEHICLES
+}
+
+func (m *Map) GetRealVehicleID(id int) VehicleID {
+	return VehicleID(id + (m.vehicles.vehicle_id_index_array[id] * m.config_parameters.MAX_VEHICLES))
 }
