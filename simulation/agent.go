@@ -3,10 +3,16 @@ package simulation
 import "fmt"
 
 type StaticAgent interface {
-	Poke(mapsim *Map, time SimTime)
+	Poke(mapsim *Map, time SimTime, agent_channel chan StaticAgentFetchResult)
 	Descriptor() StaticAgentType
 	DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle)
 	CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool
+}
+
+type StaticAgentFetchResult struct {
+	ID                RoadNodeID
+	Time              SimTime
+	VehiclesProcessed int
 }
 
 type StaticAgentType int
@@ -59,22 +65,25 @@ func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop m
 }
 
 type IntersectionAgent struct {
-	road_node_id RoadNodeID
-	params       *IntersectionAgentParams
+	road_node_id       RoadNodeID
+	vehicles_processed int
+	params             *IntersectionAgentParams
 }
 
 type IntersectionAgentParams struct {
 }
 
 func NewIntersectionAgent(node_id RoadNodeID, params *IntersectionAgentParams) *IntersectionAgent {
-	return &IntersectionAgent{road_node_id: node_id, params: params}
+	return &IntersectionAgent{road_node_id: node_id, vehicles_processed: 0, params: params}
 }
 
 func (a *IntersectionAgent) Descriptor() StaticAgentType {
 	return IntersectionAgentType
 }
 
-func (a *IntersectionAgent) Poke(mapsim *Map, time SimTime) {
+func (a *IntersectionAgent) Poke(mapsim *Map, time SimTime, agent_channel chan StaticAgentFetchResult) {
+	agent_channel <- StaticAgentFetchResult{ID: a.road_node_id, Time: time, VehiclesProcessed: a.vehicles_processed}
+	a.vehicles_processed = 0
 	return
 }
 
@@ -83,12 +92,14 @@ func (a *IntersectionAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *V
 }
 
 func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
+	a.vehicles_processed++
 	return true
 }
 
 type SpawnerAgent struct {
-	road_node_id RoadNodeID
-	params       *SpawnerAgentParams
+	road_node_id       RoadNodeID
+	vehicles_processed int
+	params             *SpawnerAgentParams
 }
 
 type SpawnerAgentParams struct {
@@ -97,15 +108,17 @@ type SpawnerAgentParams struct {
 }
 
 func NewSpawnerAgent(node_id RoadNodeID, params *SpawnerAgentParams) *SpawnerAgent {
-	return &SpawnerAgent{road_node_id: node_id, params: params}
+	return &SpawnerAgent{road_node_id: node_id, vehicles_processed: 0, params: params}
 }
 
 func (a *SpawnerAgent) Descriptor() StaticAgentType {
 	return SpawnerAgentType
 }
 
-func (a *SpawnerAgent) Poke(mapsim *Map, time SimTime) {
+func (a *SpawnerAgent) Poke(mapsim *Map, time SimTime, agent_channel chan StaticAgentFetchResult) {
 	a.SpawnVehicles(mapsim, time)
+	agent_channel <- StaticAgentFetchResult{ID: a.road_node_id, Time: time, VehiclesProcessed: a.vehicles_processed}
+	a.vehicles_processed = 0
 }
 
 func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
@@ -124,6 +137,7 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		mapsim.vehicles.vehicle_id_index_array[mapsim.vehicles.next_empty]++
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
 		a.params.lastSpawnTime = time
+		a.vehicles_processed++
 	}
 }
 
@@ -132,26 +146,30 @@ func (a *SpawnerAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicl
 }
 
 func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
+	a.vehicles_processed++
 	return true
 }
 
 type SinkAgent struct {
-	road_node_id RoadNodeID
-	params       *SinkAgentParams
+	road_node_id       RoadNodeID
+	vehicles_processed int
+	params             *SinkAgentParams
 }
 
 type SinkAgentParams struct {
 }
 
 func NewSinkAgent(node_id RoadNodeID, params *SinkAgentParams) *SinkAgent {
-	return &SinkAgent{road_node_id: node_id, params: params}
+	return &SinkAgent{road_node_id: node_id, vehicles_processed: 0, params: params}
 }
 
 func (a *SinkAgent) Descriptor() StaticAgentType {
 	return SinkAgentType
 }
 
-func (a *SinkAgent) Poke(mapsim *Map, time SimTime) {
+func (a *SinkAgent) Poke(mapsim *Map, time SimTime, agent_channel chan StaticAgentFetchResult) {
+	agent_channel <- StaticAgentFetchResult{ID: a.road_node_id, Time: time, VehiclesProcessed: a.vehicles_processed}
+	a.vehicles_processed = 0
 	return
 }
 
@@ -160,15 +178,18 @@ func (a *SinkAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) 
 	current_lane.RemoveVehicleFromQueue(vehicle, mapsim)
 	mapsim.vehicles.vehicle_array[mapsim.GetMapArrayVehicleIDIndex(vehicle.id)] = nil
 	mapsim.vehicles.next_empty = min(mapsim.GetMapArrayVehicleIDIndex(vehicle.id), mapsim.vehicles.next_empty)
+	a.vehicles_processed++
 }
 
 func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
+	a.vehicles_processed++
 	return true
 }
 
 type TrafficLightIntersectionAgent struct {
-	road_node_id RoadNodeID
-	params       *TrafficLightIntersectionAgentParams
+	road_node_id       RoadNodeID
+	vehicles_processed int
+	params             *TrafficLightIntersectionAgentParams
 }
 
 type TrafficLightIntersectionAgentParams struct {
@@ -178,7 +199,7 @@ type TrafficLightIntersectionAgentParams struct {
 }
 
 func NewTrafficLightIntersectionAgent(node_id RoadNodeID, params *TrafficLightIntersectionAgentParams) *TrafficLightIntersectionAgent {
-	return &TrafficLightIntersectionAgent{road_node_id: node_id, params: params}
+	return &TrafficLightIntersectionAgent{road_node_id: node_id, vehicles_processed: 0, params: params}
 }
 
 func (a *TrafficLightIntersectionAgent) Descriptor() StaticAgentType {
@@ -192,13 +213,14 @@ func (a *TrafficLightIntersectionAgent) DestroyVehicle(mapsim *Map, time SimTime
 func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
 	road_node := mapsim.nodes[a.road_node_id]
 	if road_node.lanes_in[a.params.time_interval_index] == vehicle.pos.lane_id {
+		a.vehicles_processed++
 		return true
 	}
 
 	return false
 }
 
-func (a *TrafficLightIntersectionAgent) Poke(mapsim *Map, time SimTime) {
+func (a *TrafficLightIntersectionAgent) Poke(mapsim *Map, time SimTime, agent_channel chan StaticAgentFetchResult) {
 	if time-a.params.time_interval_lastChange >= a.params.time_intervals[a.params.time_interval_index] {
 		a.params.time_interval_index++
 		a.params.time_interval_lastChange = time
@@ -206,4 +228,6 @@ func (a *TrafficLightIntersectionAgent) Poke(mapsim *Map, time SimTime) {
 	if a.params.time_interval_index >= len(a.params.time_intervals) {
 		a.params.time_interval_index = 0
 	}
+	agent_channel <- StaticAgentFetchResult{ID: a.road_node_id, Time: time, VehiclesProcessed: a.vehicles_processed}
+	a.vehicles_processed = 0
 }

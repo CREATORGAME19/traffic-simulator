@@ -97,8 +97,11 @@
                 break;
             case "ping_message": //Ignore
                 break;
-            case "vehicle_speed_message":
+            case "vehicle_log_data_message":
                 renderer.renderSpeedGraph(msg_data);
+                break;
+            case "node_log_data_message":
+                renderer.renderNodeGraph(msg_data);
                 break;
             default:
                 console.log("Error: Unknown message received!");

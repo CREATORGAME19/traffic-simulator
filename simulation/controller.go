@@ -6,17 +6,9 @@ import (
 	"time"
 )
 
-type VehicleInfoResult struct {
-	id     VehicleID
-	x      float64
-	y      float64
-	time   SimTime
-	status VehicleStatus
-	speed  float64
-	acc    float64
-	origin RoadNodeID
-	dest   RoadNodeID
-	spawn_time SimTime
+type SimFetchResult struct {
+	vehicle_fetch_result      *VehicleFetchResult
+	static_agent_fetch_result *StaticAgentFetchResult
 }
 
 type SimTime float64
@@ -58,7 +50,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 
 	mapsim := InitialiseMap(nodes, lanes, config_parameters)
 
-	frontend_chan := make(chan VehicleInfoResult, config_parameters.MAX_VEHICLES)
+	frontend_chan := make(chan SimFetchResult, (config_parameters.MAX_VEHICLES + len(mapsim.nodes)))
 	simrate_chan := make(chan float64)
 	go runFrontend(frontend_chan, simrate_chan, mapsim)
 
@@ -73,8 +65,11 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	fmt.Println("Map Simulation: ", mapsim)
 
 	// Initialize Vehicles
-	vehicle_locations := make([]VehicleInfoResult, config_parameters.MAX_VEHICLES)
+	vehicle_locations := make([]VehicleFetchResult, config_parameters.MAX_VEHICLES)
 	vehicle_channel := make(chan VehicleFetchResult, config_parameters.MAX_VEHICLES) //Set number of vehicles as the size of buffer
+
+	agent_fetch := make([]StaticAgentFetchResult, len(mapsim.nodes))
+	agent_channel := make(chan StaticAgentFetchResult, len(mapsim.nodes))
 
 	var sim_time SimTime
 	sim_time = 0
@@ -85,17 +80,26 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 		minDuration := time.Duration((SIM_TIME_STEP / mapsim.config_parameters.SIM_RATE) * 1000000000) //Defines time duration for each iteration
 		start := time.Now()
 		for _, a := range rand.Perm(len(mapsim.nodes)) { //Update spawners/intersections each time
-			mapsim.nodes[a].agent.Poke(mapsim, sim_time)
+			mapsim.nodes[a].agent.Poke(mapsim, sim_time, agent_channel)
+		}
+		for m := 0; m < len(mapsim.nodes); m++ {
+			fetchresult := <-agent_channel
+			agent_fetch[fetchresult.ID] = fetchresult
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, mapsim.GetRealVehicleID(v))
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			fetchresult := <-vehicle_channel
-			vehicle_locations[mapsim.GetMapArrayVehicleIDIndex(fetchresult.Vehicle_ID)] = VehicleInfoResult{fetchresult.Vehicle_ID, fetchresult.X, fetchresult.Y, fetchresult.Time, fetchresult.Status, fetchresult.Speed, fetchresult.Acc, fetchresult.Origin, fetchresult.Dest, fetchresult.SpawnTime}
+			vehicle_locations[mapsim.GetMapArrayVehicleIDIndex(fetchresult.ID)] = fetchresult
+		}
+		for m:=0; m < len(mapsim.nodes); m++ {
+			a_copy := agent_fetch[m]
+			frontend_chan <- SimFetchResult{static_agent_fetch_result: &a_copy}
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
-			frontend_chan <- vehicle_locations[v]
+			v_copy := vehicle_locations[v]
+			frontend_chan <- SimFetchResult{vehicle_fetch_result: &v_copy}
 		}
 		sim_time += SimTime(SIM_TIME_STEP)
 		elapsed := time.Since(start)

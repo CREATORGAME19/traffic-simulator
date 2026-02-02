@@ -53,17 +53,15 @@ type MapLaneSetupMessage struct {
 var reader sync.WaitGroup //Only 1 reader and 1 writer web socket at a time
 var writer sync.WaitGroup
 
-func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, mapsim *Map) {
-	num_record_runs := max(1, int(float64(mapsim.config_parameters.NUM_RUNS)/(mapsim.config_parameters.RECORD_INTERVAL/SIM_TIME_STEP)))
-	vehicle_fetch_history := make([][]VehicleInfoResult, num_record_runs)
-	for i := 0; i < num_record_runs; i++ {
-		vehicle_fetch_history[i] = make([]VehicleInfoResult, mapsim.config_parameters.MAX_VEHICLES)
-	}
+func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, mapsim *Map) {
+	logger := InitLogger(mapsim)
 
-	current_run := new(int)
-	*current_run = 0
 	vehicles_seen := 0 //Vehicles seen in the run so far
-	current_vehicle_fetch := make([]VehicleInfoResult, mapsim.config_parameters.MAX_VEHICLES)
+	current_vehicle_fetch := make([]VehicleFetchResult, mapsim.config_parameters.MAX_VEHICLES)
+	current_agent_fetch := make([]StaticAgentFetchResult, len(mapsim.nodes))
+	for i := 0; i< len(mapsim.nodes); i++{
+		current_agent_fetch[i] = StaticAgentFetchResult{VehiclesProcessed: 0}
+	}
 	lastRecord := SimTime(-1 * mapsim.config_parameters.RECORD_INTERVAL)
 
 	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +80,7 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 		reader.Add(1) //Only one reader allowed at once
 
 		var webReaderChan chan error = make(chan error)
-		go RunWebReaderLoop(conn, mapsim, webReaderChan, simrate_chan, &vehicle_fetch_history, current_run)
+		go RunWebReaderLoop(conn, mapsim, webReaderChan, simrate_chan, logger)
 
 		if err := SendMapSetupMessage(conn, &writer, mapsim); err != nil {
 			fmt.Println("Write Error:", err)
@@ -94,8 +92,8 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 		}
 
 		run := 0
-		for *current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
-			if err := SendWebVehicleMessage(conn, &writer, vehicle_fetch_history[run]); err != nil {
+		for logger.current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
+			if err := SendWebVehicleMessage(conn, &writer, logger.vehicle_fetch_history[run]); err != nil {
 				fmt.Println("Write Error:", err)
 				return
 			}
@@ -109,28 +107,33 @@ func runFrontend(channel chan VehicleInfoResult, simrate_chan chan float64, maps
 			fmt.Println("Write Error:", err)
 			return
 		}
-		go func() {
-			for data := range channel { //Reader loop for controller channel
-				current_vehicle_fetch[mapsim.GetMapArrayVehicleIDIndex(data.id)] = data
-				vehicles_seen++
+		go func() { //Reader loop for controller channel
+			for data := range channel { 
+				if data.vehicle_fetch_result != nil {
+					vehicle_data := data.vehicle_fetch_result
+					current_vehicle_fetch[mapsim.GetMapArrayVehicleIDIndex(vehicle_data.ID)] = *vehicle_data
+					vehicles_seen++
 
-				if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
-					vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
-					if current_vehicle_fetch[0].time-lastRecord > SimTime(mapsim.config_parameters.RECORD_INTERVAL) || AlmostEqual(mapsim.config_parameters.RECORD_INTERVAL, float64(current_vehicle_fetch[0].time-lastRecord)) {
-						for i := 0; i < mapsim.config_parameters.MAX_VEHICLES; i++ {
-							vehicle_fetch_history[*current_run][i] = current_vehicle_fetch[i]
+					if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
+						vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
+						if current_vehicle_fetch[0].Time-lastRecord > SimTime(mapsim.config_parameters.RECORD_INTERVAL) || AlmostEqual(mapsim.config_parameters.RECORD_INTERVAL, float64(current_vehicle_fetch[0].Time-lastRecord)) {
+							logger.SaveCurrentVehicleFetchHistory(mapsim,&current_vehicle_fetch)
+							logger.SaveCurrentAgentFetchHistory(mapsim,&current_agent_fetch)
+							logger.IncrementCurrentRun()
+							lastRecord = current_vehicle_fetch[0].Time
 						}
-						*current_run++
-						lastRecord = current_vehicle_fetch[0].time
+						if err := SendWebVehicleMessage(conn, &writer, current_vehicle_fetch); err != nil {
+							fmt.Println("Write Error:", err)
+							return
+						}
+						if err := <-webReaderChan; err != nil {
+							fmt.Println(err)
+							return
+						}
 					}
-					if err := SendWebVehicleMessage(conn, &writer, current_vehicle_fetch); err != nil {
-						fmt.Println("Write Error:", err)
-						return
-					}
-					if err := <-webReaderChan; err != nil {
-						fmt.Println(err)
-						return
-					}
+				} else if data.static_agent_fetch_result != nil {
+					agent_data := data.static_agent_fetch_result
+					current_agent_fetch[agent_data.ID] = StaticAgentFetchResult{ID: agent_data.ID, Time: agent_data.Time, VehiclesProcessed: agent_data.VehiclesProcessed + current_agent_fetch[agent_data.ID].VehiclesProcessed}
 				}
 			}
 		}()
@@ -160,19 +163,19 @@ func SendLoadingDoneMessage(conn *websocket.Conn, writer *sync.WaitGroup) error 
 	return conn.WriteJSON(Message{Type: "loading_done_message", Data: ""})
 }
 
-func SendWebVehicleMessage(conn *websocket.Conn, writer *sync.WaitGroup, data []VehicleInfoResult) error {
+func SendWebVehicleMessage(conn *websocket.Conn, writer *sync.WaitGroup, data []VehicleFetchResult) error {
 	defer writer.Done()
 	writer.Wait()
 	writer.Add(1)
 
 	msg := make([]VehicleMessage, len(data))
 	for i := 0; i < len(data); i++ {
-		msg[i] = VehicleMessage{ID: data[i].id, X: data[i].x, Y: data[i].y, Time: data[i].time, Status: data[i].status, Speed: data[i].speed, Acc: data[i].acc, Origin: data[i].origin, Dest: data[i].dest, SpawnTime: data[i].spawn_time}
+		msg[i] = VehicleMessage{ID: data[i].ID, X: data[i].X, Y: data[i].Y, Time: data[i].Time, Status: data[i].Status, Speed: data[i].Speed, Acc: data[i].Acc, Origin: data[i].Origin, Dest: data[i].Dest, SpawnTime: data[i].SpawnTime}
 	}
 	return conn.WriteJSON(Message{Type: "vehicle_message", Data: msg})
 }
 
-func SendVehicleSpeedMessage(conn *websocket.Conn, vehicle_fetch_history *[][]VehicleInfoResult, spawn_index int, current_run *int, vehicle_id int) error {
+func SendVehicleLogDataMessage(conn *websocket.Conn, vehicle_fetch_history *[][]VehicleFetchResult, spawn_index int, current_run *int, vehicle_id int) error {
 	defer writer.Done()
 	writer.Wait()
 	writer.Add(1)
@@ -180,9 +183,21 @@ func SendVehicleSpeedMessage(conn *websocket.Conn, vehicle_fetch_history *[][]Ve
 	msg := make([]VehicleMessage, *current_run-spawn_index)
 	for i := 0; i <= *current_run-1-spawn_index; i++ {
 		data := (*vehicle_fetch_history)[i+spawn_index][vehicle_id]
-		msg[i] = VehicleMessage{ID: data.id, X: data.x, Y: data.y, Time: data.time, Status: data.status, Speed: data.speed, Acc: data.acc, Origin: data.origin, Dest: data.dest, SpawnTime: data.spawn_time}
+		msg[i] = VehicleMessage{ID: data.ID, X: data.X, Y: data.Y, Time: data.Time, Status: data.Status, Speed: data.Speed, Acc: data.Acc, Origin: data.Origin, Dest: data.Dest, SpawnTime: data.SpawnTime}
 	}
-	return conn.WriteJSON(Message{Type: "vehicle_speed_message", Data: msg})
+	return conn.WriteJSON(Message{Type: "vehicle_log_data_message", Data: msg})
+}
+
+func SendStaticAgentLogDataMessage(conn *websocket.Conn, agent_fetch_history *[][]LoggerStaticAgentFetchResult, current_run *int, agent_id int) error {
+	defer writer.Done()
+	writer.Wait()
+	writer.Add(1)
+
+	msg := make([]LoggerStaticAgentFetchResult, *current_run)
+	for i := 0; i < *current_run; i++ {
+		msg[i] = (*agent_fetch_history)[i][agent_id]
+	}
+	return conn.WriteJSON(Message{Type: "node_log_data_message", Data: msg})
 }
 
 func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *Map) error {
@@ -200,7 +215,7 @@ func SendMapSetupMessage(conn *websocket.Conn, writer *sync.WaitGroup, mapsim *M
 	return conn.WriteJSON(Message{Type: "map_setup_message", Data: msg})
 }
 
-func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan error, simrate_chan chan float64, vehicle_fetch_history *[][]VehicleInfoResult, current_run *int) {
+func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan error, simrate_chan chan float64, logger *Logger) {
 	defer func() {
 		if mapsim.config_parameters.SIM_RATE == 0 {
 			mapsim.config_parameters.SIM_RATE = 1
@@ -232,17 +247,29 @@ func RunWebReaderLoop(conn *websocket.Conn, mapsim *Map, webReaderChan chan erro
 			default:
 				//Nothing
 			}
-		case "fetch_vehicle_speed":
+		case "fetch_vehicle_data":
 			vehicle_id, ok := msg.Data.(float64)
 			if !ok {
 				fmt.Println("Error: vehicle_id is not an int!")
 				webReaderChan <- fmt.Errorf("Error: vehicle_id is not an int!")
 				return
 			}
-			lastSpawn := (*vehicle_fetch_history)[*current_run-1][int(vehicle_id)].spawn_time
-			curr_time := (*vehicle_fetch_history)[*current_run-1][int(vehicle_id)].time
-			spawn_index := (*current_run - 1) - int((curr_time-lastSpawn)/SimTime(mapsim.config_parameters.RECORD_INTERVAL))
-			if err := SendVehicleSpeedMessage(conn, vehicle_fetch_history, spawn_index, current_run, int(vehicle_id)); err != nil {
+			lastSpawn := (logger.vehicle_fetch_history)[logger.current_run-1][int(vehicle_id)].SpawnTime
+			curr_time := (logger.vehicle_fetch_history)[logger.current_run-1][int(vehicle_id)].Time
+			spawn_index := (logger.current_run - 1) - int((curr_time-lastSpawn)/SimTime(mapsim.config_parameters.RECORD_INTERVAL))
+			if err := SendVehicleLogDataMessage(conn, &logger.vehicle_fetch_history, spawn_index, &logger.current_run, int(vehicle_id)); err != nil {
+				fmt.Println(err)
+				webReaderChan <- err
+				return
+			}
+		case "fetch_node_data":
+			node_id, ok := msg.Data.(float64)
+			if !ok {
+				fmt.Println("Error: node_id is not an int!")
+				webReaderChan <- fmt.Errorf("Error: node_id is not an int!")
+				return
+			}
+			if err := SendStaticAgentLogDataMessage(conn, &logger.static_agent_fetch_history, &logger.current_run, int(node_id)); err != nil {
 				fmt.Println(err)
 				webReaderChan <- err
 				return

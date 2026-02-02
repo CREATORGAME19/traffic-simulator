@@ -103,16 +103,16 @@ const (
 )
 
 type VehicleFetchResult struct {
-	X          float64
-	Y          float64
-	Time       SimTime
-	Vehicle_ID VehicleID
-	Status     VehicleStatus
-	Speed      float64
-	Acc        float64
-	Origin     RoadNodeID
-	Dest       RoadNodeID
-	SpawnTime  SimTime
+	X         float64
+	Y         float64
+	Time      SimTime
+	ID        VehicleID
+	Status    VehicleStatus
+	Speed     float64
+	Acc       float64
+	Origin    RoadNodeID
+	Dest      RoadNodeID
+	SpawnTime SimTime
 }
 
 func (a *Vehicle) FindNextLanePosition(mapsim *Map, curr_node_id RoadNodeID) (VehiclePosition, error) {
@@ -236,7 +236,7 @@ func (a *Vehicle) CalculateAcceleration(gap_ahead float64, next_vehicle *Vehicle
 
 func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel chan VehicleFetchResult, id VehicleID) error {
 	if a == nil {
-		vehicle_channel <- VehicleFetchResult{X: 0, Y: 0, Time: time, Vehicle_ID: id, Status: NilVehicle}
+		vehicle_channel <- VehicleFetchResult{X: 0, Y: 0, Time: time, ID: id, Status: NilVehicle}
 		return nil
 	}
 	curr_pos := a.pos
@@ -252,7 +252,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 
 		coords := curr_node.pos
 		a.lastFetch = time
-		vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id, Status: VehicleInTransit}
+		vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, ID: a.id, Status: VehicleInTransit}
 		return nil
 	}
 
@@ -275,7 +275,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 		sink.DestroyVehicle(mapsim, time, a)
 	}
 
-	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, Vehicle_ID: a.id, Status: VehicleInTransit, Speed: a.speed, Acc: a.acc, Origin: a.origin, Dest: a.destination, SpawnTime: a.spawnTime}
+	vehicle_channel <- VehicleFetchResult{X: coords.x, Y: coords.y, Time: a.lastFetch, ID: a.id, Status: VehicleInTransit, Speed: a.speed, Acc: a.acc, Origin: a.origin, Dest: a.destination, SpawnTime: a.spawnTime}
 	return nil
 }
 

@@ -480,8 +480,15 @@ class Renderer {
         overlay.appendChild(content);
         document.body.appendChild(overlay);
 
-        if (type === "vehicle") {
-            const vehicleSpeedData = this.requestVehicleSpeedData(id);
+        switch (type) {
+            case "vehicle":
+                this.requestVehicleSpeedData(id);
+                break;
+            case "node":
+                this.requestNodeData(id);
+                break;
+            default:
+                break;
         }
 
         const close = () => overlay.remove();
@@ -560,7 +567,7 @@ class Renderer {
             .append("circle")
             .attr("cx", d => x(d.Time))
             .attr("cy", d => y(d.Speed))
-            .attr("r", 6) // Slightly larger for easier clicking
+            .attr("r", 6)
             .attr("fill", "#0066cc")
             .style("cursor", "pointer")
             .on("click", function(event, d) {
@@ -585,8 +592,109 @@ class Renderer {
     requestVehicleSpeedData(vehicle_id) {
         this.web_socket.send(
             JSON.stringify(
-                {Type: "fetch_vehicle_speed", Data: parseFloat(vehicle_id)}
+                {Type: "fetch_vehicle_data", Data: parseFloat(vehicle_id)}
             )
         );
+    }
+
+    renderNodeGraph(nodeData) {
+        const margin = { top: 20, right: 30, bottom: 50, left: 60 },
+            width = 800 - margin.left - margin.right,
+            height = 350 - margin.top - margin.bottom;
+
+        const svg = d3.select("#chart-container")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("viewBox", `0 0 800 350`)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleLinear()
+            .domain(d3.extent(nodeData, d => d.Time))
+            .range([0, width]);
+
+        const y = d3.scaleLinear()
+            .domain(d3.extent(nodeData, d => d.Throughput))
+            .range([height, 0]);
+
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).ticks(10))
+            .append("text")
+            .attr("x", width / 2)
+            .attr("y", 40)
+            .attr("fill", "black")
+            .style("text-anchor", "middle")
+            .text("Time (seconds)");
+
+        svg.append("g")
+            .call(d3.axisLeft(y))
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -45)
+            .attr("x", -height / 2)
+            .attr("fill", "black")
+            .style("text-anchor", "middle")
+            .text("Throughput (vehicles/s)");
+
+        const line = d3.line()
+            .x(d => x(d.Time))
+            .y(d => y(d.Throughput))
+            .curve(d3.curveMonotoneX);
+
+        svg.append("path")
+            .datum(nodeData)
+            .attr("fill", "none")
+            .attr("stroke", "#0066cc")
+            .attr("stroke-width", 3)
+            .attr("d", line);
+
+        const tooltip = d3.select("#chart-container")
+            .append("div")
+            .style("position", "absolute")
+            .style("visibility", "hidden")
+            .style("background", "rgba(0, 0, 0, 0.8)")
+            .style("color", "#fff")
+            .style("padding", "8px")
+            .style("border-radius", "4px")
+            .style("font-size", "12px")
+            .style("pointer-events", "none")
+            .style("z-index", "10001");
+
+        svg.selectAll("circle")
+            .data(nodeData)
+            .enter()
+            .append("circle")
+            .attr("cx", d => x(d.Time))
+            .attr("cy", d => y(d.Throughput))
+            .attr("r", 6)
+            .attr("fill", "#0066cc")
+            .style("cursor", "pointer")
+            .on("click", function(event, d) {
+                const mouseX = event.clientX;
+                const mouseY = event.clientY;
+
+                tooltip.html(`Time: ${d.Time.toFixed(3)}s<br>Throughput: ${d.Throughput.toFixed(3)} vehicles/s`)
+                    .style("visibility", "visible")
+                    .style("position", "fixed") 
+                    .style("top", (mouseY - 60) + "px")
+                    .style("left", (mouseX - 60) + "px");
+
+                d3.selectAll("circle").attr("fill", "#0066cc").attr("r", 6);
+                d3.select(this).attr("fill", "#ff9900").attr("r", 8);
+                
+                event.stopPropagation(); // Prevent overlay from closing if listener exists
+            });
+
+        svg.on("click", () => tooltip.style("visibility", "hidden"));
+    }
+
+    requestNodeData(node_id) {
+        this.web_socket.send(
+            JSON.stringify(
+                {Type: "fetch_node_data", Data: parseFloat(node_id)}
+            )
+        )
     }
 }
