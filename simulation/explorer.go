@@ -53,8 +53,7 @@ type MapLaneSetupMessage struct {
 var reader sync.WaitGroup //Only 1 reader and 1 writer web socket at a time
 var writer sync.WaitGroup
 
-func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, mapsim *Map) {
-	logger := InitLogger(mapsim)
+func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, logger *Logger, mapsim *Map) {
 
 	vehicles_seen := 0 //Vehicles seen in the run so far
 	current_vehicle_fetch := make([]VehicleFetchResult, mapsim.config_parameters.MAX_VEHICLES)
@@ -62,7 +61,6 @@ func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, mapsim 
 	for i := 0; i< len(mapsim.nodes); i++{
 		current_agent_fetch[i] = StaticAgentFetchResult{VehiclesProcessed: 0}
 	}
-	lastRecord := SimTime(-1 * mapsim.config_parameters.RECORD_INTERVAL)
 
 	http.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -116,12 +114,6 @@ func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, mapsim 
 
 					if vehicles_seen >= mapsim.config_parameters.MAX_VEHICLES {
 						vehicles_seen -= mapsim.config_parameters.MAX_VEHICLES
-						if current_vehicle_fetch[0].Time-lastRecord > SimTime(mapsim.config_parameters.RECORD_INTERVAL) || AlmostEqual(mapsim.config_parameters.RECORD_INTERVAL, float64(current_vehicle_fetch[0].Time-lastRecord)) {
-							logger.SaveCurrentVehicleFetchHistory(mapsim,&current_vehicle_fetch)
-							logger.SaveCurrentAgentFetchHistory(mapsim,&current_agent_fetch)
-							logger.IncrementCurrentRun()
-							lastRecord = current_vehicle_fetch[0].Time
-						}
 						if err := SendWebVehicleMessage(conn, &writer, current_vehicle_fetch); err != nil {
 							fmt.Println("Write Error:", err)
 							return

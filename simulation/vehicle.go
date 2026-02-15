@@ -103,16 +103,16 @@ const (
 )
 
 type VehicleFetchResult struct {
-	X         float64
-	Y         float64
-	Time      SimTime
-	ID        VehicleID
-	Status    VehicleStatus
-	Speed     float64
-	Acc       float64
-	Origin    RoadNodeID
-	Dest      RoadNodeID
-	SpawnTime SimTime
+	Time      SimTime `json:"time"`
+	ID        VehicleID `json:"vehicle_id"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Status    VehicleStatus `json:"status"`
+	Speed     float64 `json:"speed"`
+	Acc       float64 `json:"acc"`
+	Origin    RoadNodeID `json:"source_node_id"`
+	Dest      RoadNodeID `json:"destination_node_id"`
+	SpawnTime SimTime `json:"spawn_time"`
 }
 
 func (a *Vehicle) FindNextLanePosition(mapsim *Map, curr_node_id RoadNodeID) (VehiclePosition, error) {

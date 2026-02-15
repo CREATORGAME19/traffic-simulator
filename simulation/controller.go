@@ -9,6 +9,7 @@ import (
 type SimFetchResult struct {
 	vehicle_fetch_result      *VehicleFetchResult
 	static_agent_fetch_result *StaticAgentFetchResult
+	//vehicle_event_log         *LoggerVehicleEvent
 }
 
 type SimTime float64
@@ -21,8 +22,10 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	nodes := make([]RoadNode, len(map_config.Road_nodes))
 	lanes := make([]Lane, len(map_config.Lanes))
 
+	vehicle_log_channel := make(chan LoggerVehicleEvent, 2*config_parameters.MAX_VEHICLES)
+
 	for n := 0; n < len(nodes); n++ {
-		agent, err := NewStaticAgent(map_config.Road_nodes[n].ID, map_config.Road_nodes[n].Agent, map_config.Road_nodes[n].AgentProp)
+		agent, err := NewStaticAgent(map_config.Road_nodes[n].ID, map_config.Road_nodes[n].Agent, map_config.Road_nodes[n].AgentProp, vehicle_log_channel)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -50,11 +53,13 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 
 	mapsim := InitialiseMap(nodes, lanes, config_parameters)
 
-	frontend_chan := make(chan SimFetchResult, (config_parameters.MAX_VEHICLES + len(mapsim.nodes)))
+	logger_chan := make(chan SimFetchResult, (config_parameters.MAX_VEHICLES + len(mapsim.nodes)))
 	simrate_chan := make(chan float64)
-	go runFrontend(frontend_chan, simrate_chan, mapsim)
+	logger, frontend_chan := InitLogger(mapsim)
+	go runFrontend(frontend_chan, simrate_chan, logger, mapsim)
+	go logger.RunLogger(logger_chan, vehicle_log_channel, mapsim)
 
-	defer close(frontend_chan)
+	defer close(logger_chan)
 
 	err := open_url("http://localhost:" + PORT)
 	if err != nil {
@@ -93,13 +98,13 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 			fetchresult := <-vehicle_channel
 			vehicle_locations[mapsim.GetMapArrayVehicleIDIndex(fetchresult.ID)] = fetchresult
 		}
-		for m:=0; m < len(mapsim.nodes); m++ {
+		for m := 0; m < len(mapsim.nodes); m++ {
 			a_copy := agent_fetch[m]
-			frontend_chan <- SimFetchResult{static_agent_fetch_result: &a_copy}
+			logger_chan <- SimFetchResult{static_agent_fetch_result: &a_copy}
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			v_copy := vehicle_locations[v]
-			frontend_chan <- SimFetchResult{vehicle_fetch_result: &v_copy}
+			logger_chan <- SimFetchResult{vehicle_fetch_result: &v_copy}
 		}
 		sim_time += SimTime(SIM_TIME_STEP)
 		elapsed := time.Since(start)
