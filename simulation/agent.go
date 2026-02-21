@@ -94,8 +94,8 @@ func (a *IntersectionAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *V
 
 func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
 	a.vehicles_processed++
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 	return true
 }
 
@@ -142,7 +142,7 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
 		a.params.lastSpawnTime = time
 		a.vehicles_processed++
-		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: next_vehicle_id, Time: time, LaneID: -1, EventType: LoggerVehicleEventSpawn} //Technically vehicle is not yet on a lane upon spawn
+		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: next_vehicle_id, NodeID: a.road_node_id, Time: time, LaneID: -1, EventType: LoggerVehicleEventSpawn} //Technically vehicle is not yet on a lane upon spawn
 	}
 }
 
@@ -152,8 +152,8 @@ func (a *SpawnerAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicl
 
 func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
 	a.vehicles_processed++
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 	return true
 }
 
@@ -187,13 +187,13 @@ func (a *SinkAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) 
 	mapsim.vehicles.vehicle_array[mapsim.GetMapArrayVehicleIDIndex(vehicle.id)] = nil
 	mapsim.vehicles.next_empty = min(mapsim.GetMapArrayVehicleIDIndex(vehicle.id), mapsim.vehicles.next_empty)
 	a.vehicles_processed++
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: current_lane.id, EventType: LoggerVehicleEventDestroy}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: current_lane.id, EventType: LoggerVehicleEventDestroy}
 }
 
 func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
 	a.vehicles_processed++
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 	return true
 }
 
@@ -226,8 +226,8 @@ func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimT
 	road_node := mapsim.nodes[a.road_node_id]
 	if road_node.lanes_in[a.params.time_interval_index] == vehicle.pos.lane_id {
 		a.vehicles_processed++
-		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
+		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 		return true
 	}
 

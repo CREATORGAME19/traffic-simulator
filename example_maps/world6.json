@@ -1,0 +1,175 @@
+{
+    "road_nodes": [
+        {
+            "ID": 0,
+            "Position": {
+                "x": 0,
+                "y": 0
+            },
+            "Lanes_Out": [6, 7],
+            "Lanes_In": [0, 2],
+            "Agent": 3,
+            "AgentProp": {
+                "time_intervals": [180, 20]
+            }
+        },
+        {
+            "ID": 1,
+            "Position": {
+                "x": -1854,
+                "y": 1555
+            },
+            "Lanes_Out": [0],
+            "Lanes_In": [],
+            "Agent": 1,
+            "AgentProp": {
+                "spawn_rate": 0.3
+            }
+        },
+        {
+            "ID": 2,
+            "Position": {
+                "x": -201,
+                "y": -113
+            },
+            "Lanes_Out": [2, 3],
+            "Lanes_In": [1],
+            "Agent": 0,
+            "AgentProp": {}
+        },
+        {
+            "ID": 3,
+            "Position": {
+                "x": -2301,
+                "y": 510
+            },
+            "Lanes_Out": [1],
+            "Lanes_In": [],
+            "Agent": 1,
+            "AgentProp": {
+                "spawn_rate": 0.01
+            }
+        },
+        {
+            "ID": 4,
+            "Position": {
+                "x": 215,
+                "y": -1325
+            },
+            "Lanes_Out": [4],
+            "Lanes_In": [3],
+            "Agent": 0,
+            "AgentProp": {}
+        },
+        {
+            "ID": 5,
+            "Position": {
+                "x": 1740,
+                "y": -1125
+            },
+            "Lanes_Out": [5],
+            "Lanes_In": [4],
+            "Agent": 0,
+            "AgentProp": {
+            }
+        },
+        {
+            "ID": 6,
+            "Position": {
+                "x": 1740,
+                "y": 0
+            },
+            "Lanes_Out": [8],
+            "Lanes_In": [5, 6],
+            "Agent": 0,
+            "AgentProp": {}
+        },
+        {
+            "ID": 7,
+            "Position": {
+                "x": 721,
+                "y": -721
+            },
+            "Lanes_Out": [],
+            "Lanes_In": [7],
+            "Agent": 2,
+            "AgentProp": {}
+        },
+        {
+            "ID": 8,
+            "Position": {
+                "x": 2940,
+                "y": 0
+            },
+            "Lanes_Out": [],
+            "Lanes_In": [8],
+            "Agent": 2,
+            "AgentProp": {}
+        }
+    ],
+    "lanes": [
+        {
+            "ID": 0,
+            "Start_Position": { "x": -1854, "y": 1555 },
+            "End_Position": { "x": 0, "y": 0 },
+            "From_Node": 1,
+            "To_Node": 0
+        },
+        {
+            "ID": 1,
+            "Start_Position": { "x": -2301, "y": 510 },
+            "End_Position": { "x": -201, "y": -113 },
+            "From_Node": 3,
+            "To_Node": 2
+        },
+        {
+            "ID": 2,
+            "Start_Position": { "x": -201, "y": -113 },
+            "End_Position": { "x": 0, "y": 0 },
+            "From_Node": 2,
+            "To_Node": 0
+        },
+        {
+            "ID": 3,
+            "Start_Position": { "x": -201, "y": -113 },
+            "End_Position": { "x": 215, "y": -1325 },
+            "From_Node": 2,
+            "To_Node": 4
+        },
+        {
+            "ID": 4,
+            "Start_Position": { "x": 215, "y": -1325 },
+            "End_Position": { "x": 1740, "y": -1125 },
+            "From_Node": 4,
+            "To_Node": 5
+        },
+        {
+            "ID": 5,
+            "Start_Position": { "x": 1740, "y": -1125 },
+            "End_Position": { "x": 1740, "y": 0 },
+            "From_Node": 5,
+            "To_Node": 6
+        },
+        {
+            "ID": 6,
+            "Start_Position": { "x": 0, "y": 0 },
+            "End_Position": { "x": 1740, "y": 0 },
+            "From_Node": 0,
+            "To_Node": 6
+        },
+        {
+            "ID": 7,
+            "Start_Position": { "x": 0, "y": 0 },
+            "End_Position": { "x": 721, "y": -721 },
+            "From_Node": 0,
+            "To_Node": 7
+        },
+        {
+            "ID": 8,
+            "Start_Position": { "x": 1740, "y": 0 },
+            "End_Position": { "x": 2940, "y": 0 },
+            "From_Node": 6,
+            "To_Node": 8
+        }
+    ]
+}

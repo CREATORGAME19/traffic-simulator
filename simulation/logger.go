@@ -31,6 +31,7 @@ type LoggerVehicleEvent struct {
 	Time      SimTime         `json:"time"`
 	VehicleID VehicleID       `json:"vehicle_id"`
 	LaneID    LaneID          `json:"lane_id"`
+	NodeID    RoadNodeID      `json:"node_id"`
 	EventType LoggerEventType `json:"event_type"`
 }
 
