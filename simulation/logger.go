@@ -57,7 +57,7 @@ func InitLogger(mapsim *Map) (*Logger, chan SimFetchResult) {
 	}
 
 	out_channel := make(chan SimFetchResult, (mapsim.config_parameters.MAX_VEHICLES + len(mapsim.nodes)))
-	f, err := os.OpenFile("simulation_log.jsonl", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(mapsim.config_parameters.LOG_FILE, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 	}

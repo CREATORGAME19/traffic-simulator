@@ -13,6 +13,7 @@ const DEFAULT_MAX_RUNS = 2000
 const DEFAULT_INCREMENT_VEHICLE_PATH = 5
 const DEFAULT_SIM_RATE = 2.0
 const DEFAULT_RECORD_INTERVAL = 1.0
+const DEFAULT_LOG_FILE = "simulation_log.jsonl"
 
 type MapConfig struct {
 	Road_nodes []RoadNodeConfig `json:"road_nodes"`
@@ -24,7 +25,8 @@ type ConfigParameters struct {
 	NUM_RUNS               int
 	INCREMENT_VEHICLE_PATH int
 	SIM_RATE               float64
-	RECORD_INTERVAL            float64
+	RECORD_INTERVAL        float64
+	LOG_FILE               string
 }
 
 type RoadNodeConfig struct {
@@ -59,7 +61,7 @@ func ParseSimArgs(args []string) (*MapConfig, *ConfigParameters, error) {
 		return nil, nil, fmt.Errorf("Error: No path to config file is provided!")
 	}
 	path := args[1]
-	config_parameters = &ConfigParameters{MAX_VEHICLES: DEFAULT_MAX_VEHICLES, NUM_RUNS: DEFAULT_MAX_RUNS, INCREMENT_VEHICLE_PATH: DEFAULT_INCREMENT_VEHICLE_PATH, SIM_RATE: DEFAULT_SIM_RATE, RECORD_INTERVAL: DEFAULT_RECORD_INTERVAL}
+	config_parameters = &ConfigParameters{MAX_VEHICLES: DEFAULT_MAX_VEHICLES, NUM_RUNS: DEFAULT_MAX_RUNS, INCREMENT_VEHICLE_PATH: DEFAULT_INCREMENT_VEHICLE_PATH, SIM_RATE: DEFAULT_SIM_RATE, RECORD_INTERVAL: DEFAULT_RECORD_INTERVAL, LOG_FILE: DEFAULT_LOG_FILE}
 	for i := 2; i < len(args); i++ {
 		if err := ParseExtraArg(args[i], config_parameters); err != nil {
 			return nil, nil, err
@@ -90,7 +92,7 @@ func ParseExtraArg(arg string, config_parameters *ConfigParameters) error {
 	}
 	key := res[0]
 	value, err := strconv.ParseFloat(res[1], 64)
-	if err != nil {
+	if err != nil && key != "LOG_FILE"{
 		return fmt.Errorf("Invalid Config Parameter!")
 	}
 	switch key {
@@ -110,6 +112,8 @@ func ParseExtraArg(arg string, config_parameters *ConfigParameters) error {
 			return fmt.Errorf("Invalid RECORD_INTERVAL must be >0!")
 		}
 		config_parameters.RECORD_INTERVAL = float64(value)
+	case "LOG_FILE":
+		config_parameters.LOG_FILE = res[1]
 	default:
 		return fmt.Errorf("Unrecognised Config Parameter " + key + "!")
 	}
