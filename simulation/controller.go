@@ -9,7 +9,6 @@ import (
 type SimFetchResult struct {
 	vehicle_fetch_result      *VehicleFetchResult
 	static_agent_fetch_result *StaticAgentFetchResult
-	//vehicle_event_log         *LoggerVehicleEvent
 }
 
 type SimTime float64
@@ -25,7 +24,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	vehicle_log_channel := make(chan LoggerVehicleEvent, 2*config_parameters.MAX_VEHICLES)
 
 	for n := 0; n < len(nodes); n++ {
-		agent, err := NewStaticAgent(map_config.Road_nodes[n].ID, map_config.Road_nodes[n].Agent, map_config.Road_nodes[n].AgentProp, vehicle_log_channel)
+		agent, err := NewStaticAgent(map_config.Road_nodes[n].ID, map_config.Road_nodes[n].Agent, map_config.Road_nodes[n].AgentProp, vehicle_log_channel, config_parameters)
 		if err != nil {
 			fmt.Println(err)
 			return

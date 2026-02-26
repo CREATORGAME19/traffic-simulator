@@ -20,7 +20,7 @@ class Renderer {
         this.sim_rate = 0;
         this.web_socket = web_socket;
 
-        this.scaleFactor = 0.15;
+        this.scaleFactor = 0.25;
         this.xScaleOffset = 0;
         this.yScaleOffset = 0;
 

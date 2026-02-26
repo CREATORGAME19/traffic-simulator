@@ -103,16 +103,16 @@ const (
 )
 
 type VehicleFetchResult struct {
-	Time      SimTime `json:"time"`
-	ID        VehicleID `json:"vehicle_id"`
-	X         float64 `json:"x"`
-	Y         float64 `json:"y"`
+	Time      SimTime       `json:"time"`
+	ID        VehicleID     `json:"vehicle_id"`
+	X         float64       `json:"x"`
+	Y         float64       `json:"y"`
 	Status    VehicleStatus `json:"status"`
-	Speed     float64 `json:"speed"`
-	Acc       float64 `json:"acc"`
-	Origin    RoadNodeID `json:"source_node_id"`
-	Dest      RoadNodeID `json:"destination_node_id"`
-	SpawnTime SimTime `json:"spawn_time"`
+	Speed     float64       `json:"speed"`
+	Acc       float64       `json:"acc"`
+	Origin    RoadNodeID    `json:"source_node_id"`
+	Dest      RoadNodeID    `json:"destination_node_id"`
+	SpawnTime SimTime       `json:"spawn_time"`
 }
 
 func (a *Vehicle) FindNextLanePosition(mapsim *Map, curr_node_id RoadNodeID) (VehiclePosition, error) {
@@ -160,32 +160,57 @@ func (a *Vehicle) GetCurrentLane(m *Map) *Lane {
 }
 
 func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, pos VehiclePosition) (VehiclePosition, error) {
+	curr_node_id := m.lanes[a.pos.lane_id].to_node
 	if a.HasReachedEndLane() {
-		curr_node_id := m.lanes[a.pos.lane_id].to_node
-		desired_pos, err := a.FindNextLanePosition(m, curr_node_id)
-		if err != nil {
-			return VehiclePosition{}, err
-		}
-		if a.isLaneFreeAtPos(m, desired_pos) && m.nodes[curr_node_id].agent.CanVehicleProceed(m, new_time, a, desired_pos.lane_id) {
-			a.SwitchToNewLane(m, desired_pos) //If lane is free to enter, then proceed to the requested position
-			pos = desired_pos
-		} else { //Otherwise wait
-			a.speed = 0
-			a.acc = 0
-			return pos, nil
+		vehicle_in_inter_lane := m.nodes[curr_node_id].agent.isVehicleInTransitInterLane(a, m)
+		if vehicle_in_inter_lane {
+			desired_pos := VehiclePosition{lane_id: m.nodes[curr_node_id].agent.GetInterLaneNextLane(a, m), progress: 0}
+			if m.nodes[curr_node_id].agent.HasReachedEndInterLane(a, m) && a.isLaneFreeAtPos(m, desired_pos) {
+				m.nodes[curr_node_id].agent.RemoveTransitingVehicle(a, m)
+				new_lane := m.lanes[desired_pos.lane_id]
+				new_lane.AddVehicleToQueue(a, m)
+				pos = desired_pos
+			}
+		} else {
+			desired_pos, err := a.FindNextLanePosition(m, curr_node_id)
+			if err != nil {
+				return VehiclePosition{}, err
+			}
+			if a.isLaneFreeAtPos(m, desired_pos) && m.nodes[curr_node_id].agent.CanVehicleProceed(m, new_time, a, desired_pos.lane_id) {
+				//If lane is free to enter, then proceed to the requested position
+				m.nodes[curr_node_id].agent.AddTransitingVehicle(a, m, desired_pos)
+				m.lanes[a.pos.lane_id].RemoveVehicleFromQueue(a, m)
+			} else { //Otherwise wait
+				a.speed = 0
+				a.acc = 0
+				return pos, nil
+			}
 		}
 	}
-	curr_lane := a.GetCurrentLane(m)
-	total_lane_distance := curr_lane.distance
-	current_distance := pos.progress * total_lane_distance
+	vehicle_in_inter_lane := m.nodes[curr_node_id].agent.isVehicleInTransitInterLane(a, m)
 
 	new_speed := max(0, a.CalculateSpeed(new_time-old_time))
 	distance_travelled := max(0, a.CalculateDistanceTravelled(new_time-old_time))
 
+	curr_lane := a.GetCurrentLane(m)
+	total_lane_distance := curr_lane.distance
+	current_distance := pos.progress * total_lane_distance
+	if vehicle_in_inter_lane { //Checks if vehicle in inter lane
+		distance, progress := m.nodes[curr_node_id].agent.GetInterLaneDistanceProgress(a, m)
+		total_lane_distance = distance
+		current_distance = progress * total_lane_distance
+	}
+
 	gap_ahead := max(0, total_lane_distance-distance_travelled-current_distance)
 	next_vehicle := curr_lane.FindNextVehicleAhead(m, a)
+	if vehicle_in_inter_lane { //Checks if vehicle in inter lane
+		next_vehicle = m.nodes[curr_node_id].agent.FindInterLaneNextVehicleAhead(a, m)
+	}
 	if next_vehicle != nil {
 		gap_ahead = CalculateDistance(a.GetPosXY(m), next_vehicle.GetPosXY(m))
+		if vehicle_in_inter_lane { //Checks if vehicle in inter lane
+			gap_ahead = CalculateDistance(CalculateXYInterLaneVehicle(a,m),CalculateXYInterLaneVehicle(next_vehicle,m))
+		}
 	}
 
 	a.speed = new_speed
@@ -195,6 +220,10 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	a.acc = new_acc
 
 	new_progress := min((distance_travelled+current_distance)/total_lane_distance, 1)
+	if vehicle_in_inter_lane { //Checks if vehicle in inter lane
+		m.nodes[curr_node_id].agent.UpdateInterLaneVehicleProgress(a, m, new_progress)
+		return VehiclePosition{lane_id: pos.lane_id, progress: 1}, nil //Currently doesn't show movement
+	}
 	return VehiclePosition{lane_id: pos.lane_id, progress: float64(new_progress)}, nil
 }
 
@@ -267,6 +296,11 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 	//Finish for this turn
 
 	coords := a.GetPosXY(mapsim)
+
+	if a.CheckVehicleInInterLane(mapsim) { //Calculate Inter-lane XY and update coords
+		coords = CalculateXYInterLaneVehicle(a,mapsim)
+	}
+	
 	a.lastFetch = time
 
 	if a.hasReachedDestination(mapsim) {
@@ -331,4 +365,9 @@ func (a *Vehicle) NextNodeVehiclePathExists() bool {
 
 func (a *Vehicle) GetNextNodeVehiclePath() RoadNodeID {
 	return (*a.path.path_array)[a.path.curr_index]
+}
+
+func (a *Vehicle) CheckVehicleInInterLane(m *Map) bool {
+	curr_node_id := m.lanes[a.pos.lane_id].to_node
+	return m.nodes[curr_node_id].agent.isVehicleInTransitInterLane(a, m)
 }
