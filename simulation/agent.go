@@ -95,8 +95,11 @@ func GetInterLaneNextVehicle(vehicle_transit_array *[]*InterLaneVehicleTransit, 
 	return nearest_vehicle_id
 }
 
-func CalculateXYInterLaneVehicle(vehicle *Vehicle, mapsim *Map) Position {
+func CalculateXYInterLaneVehicle(vehicle *Vehicle, mapsim *Map) *Position {
 	curr_node_id := mapsim.lanes[vehicle.pos.lane_id].to_node
+	if !mapsim.nodes[curr_node_id].agent.isVehicleInTransitInterLane(vehicle, mapsim) {
+		return nil
+	}
 	_,progress := mapsim.nodes[curr_node_id].agent.GetInterLaneDistanceProgress(vehicle, mapsim)
 	start_lane_id := vehicle.pos.lane_id
 	end_lane_id := mapsim.nodes[curr_node_id].agent.GetInterLaneNextLane(vehicle, mapsim)
@@ -108,7 +111,7 @@ func CalculateXYInterLaneVehicle(vehicle *Vehicle, mapsim *Map) Position {
 	new_x := mapsim.lanes[start_lane_id].end_pos.x + progress*dx
 	new_y := mapsim.lanes[start_lane_id].end_pos.y + progress*dy
 
-	return Position{x: new_x, y: new_y}
+	return &Position{x: new_x, y: new_y}
 }
 
 type IntersectionAgent struct {
@@ -171,7 +174,7 @@ func (a *IntersectionAgent) isVehicleInTransitInterLane(v *Vehicle, m *Map) bool
 }
 
 func (a *IntersectionAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1)
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
 }
 
 func (a *IntersectionAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {
@@ -289,7 +292,7 @@ func (a *SpawnerAgent) isVehicleInTransitInterLane(v *Vehicle, m *Map) bool {
 }
 
 func (a *SpawnerAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1)
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
 }
 
 func (a *SpawnerAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {
@@ -389,7 +392,7 @@ func (a *SinkAgent) isVehicleInTransitInterLane(v *Vehicle, m *Map) bool {
 }
 
 func (a *SinkAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1)
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
 }
 
 func (a *SinkAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {
@@ -498,7 +501,7 @@ func (a *TrafficLightIntersectionAgent) isVehicleInTransitInterLane(v *Vehicle, 
 }
 
 func (a *TrafficLightIntersectionAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1)
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
 }
 
 func (a *TrafficLightIntersectionAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {

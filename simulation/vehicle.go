@@ -193,23 +193,51 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	distance_travelled := max(0, a.CalculateDistanceTravelled(new_time-old_time))
 
 	curr_lane := a.GetCurrentLane(m)
-	total_lane_distance := curr_lane.distance
-	current_distance := pos.progress * total_lane_distance
-	if vehicle_in_inter_lane { //Checks if vehicle in inter lane
-		distance, progress := m.nodes[curr_node_id].agent.GetInterLaneDistanceProgress(a, m)
-		total_lane_distance = distance
-		current_distance = progress * total_lane_distance
+	if vehicle_in_inter_lane {
+		desired_lane_id := m.nodes[curr_node_id].agent.GetInterLaneNextLane(a, m)
+		curr_lane = &m.lanes[desired_lane_id]
 	}
 
-	gap_ahead := max(0, total_lane_distance-distance_travelled-current_distance)
-	next_vehicle := curr_lane.FindNextVehicleAhead(m, a)
+	var next_vehicle_lane *Vehicle
+	var next_vehicle_inter_lane *Vehicle
+
 	if vehicle_in_inter_lane { //Checks if vehicle in inter lane
-		next_vehicle = m.nodes[curr_node_id].agent.FindInterLaneNextVehicleAhead(a, m)
+		next_vehicle_lane = curr_lane.FindNextVehicleAheadFromPos(m, VehiclePosition{progress: 0, lane_id: curr_lane.id})
+		next_vehicle_inter_lane = m.nodes[curr_node_id].agent.FindInterLaneNextVehicleAhead(a, m)
+	} else {
+		next_vehicle_lane = curr_lane.FindNextVehicleAhead(m, a)
 	}
-	if next_vehicle != nil {
-		gap_ahead = CalculateDistance(a.GetPosXY(m), next_vehicle.GetPosXY(m))
-		if vehicle_in_inter_lane { //Checks if vehicle in inter lane
-			gap_ahead = CalculateDistance(CalculateXYInterLaneVehicle(a,m),CalculateXYInterLaneVehicle(next_vehicle,m))
+
+	total_lane_distance_inter_lane := 0.0
+	total_lane_distance_lane := 0.0
+	current_distance := 0.0
+
+	if vehicle_in_inter_lane { //Checks if vehicle in inter lane
+		distance, progress := m.nodes[curr_node_id].agent.GetInterLaneDistanceProgress(a, m)
+		total_lane_distance_inter_lane = distance
+		current_distance = progress * total_lane_distance_inter_lane
+	}
+	if !vehicle_in_inter_lane || next_vehicle_inter_lane != nil {
+		total_lane_distance_lane = curr_lane.distance
+		if !vehicle_in_inter_lane {
+			current_distance = pos.progress * total_lane_distance_lane
+		}
+	}
+
+	var next_vehicle *Vehicle
+	gap_ahead := max(0, total_lane_distance_lane+total_lane_distance_inter_lane-distance_travelled-current_distance)
+
+	if next_vehicle_lane != nil && (!vehicle_in_inter_lane || next_vehicle_inter_lane == nil) {
+		gap_ahead = CalculateDistance(a.GetPosXY(m), next_vehicle_lane.GetPosXY(m))
+		next_vehicle = next_vehicle_lane
+		if vehicle_in_inter_lane {
+			gap_ahead += total_lane_distance_inter_lane
+		}
+	} else if vehicle_in_inter_lane && next_vehicle_inter_lane != nil {
+		next_vehicle_pos := CalculateXYInterLaneVehicle(next_vehicle_inter_lane, m)
+		if next_vehicle_pos != nil {
+			gap_ahead = CalculateDistance(*CalculateXYInterLaneVehicle(a, m), *next_vehicle_pos)
+			next_vehicle = next_vehicle_inter_lane
 		}
 	}
 
@@ -219,8 +247,9 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 
 	a.acc = new_acc
 
-	new_progress := min((distance_travelled+current_distance)/total_lane_distance, 1)
+	new_progress := min((distance_travelled+current_distance)/total_lane_distance_lane, 1)
 	if vehicle_in_inter_lane { //Checks if vehicle in inter lane
+		new_progress := min((distance_travelled+current_distance)/total_lane_distance_inter_lane, 1)
 		m.nodes[curr_node_id].agent.UpdateInterLaneVehicleProgress(a, m, new_progress)
 		return VehiclePosition{lane_id: pos.lane_id, progress: 1}, nil //Currently doesn't show movement
 	}
@@ -298,9 +327,9 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 	coords := a.GetPosXY(mapsim)
 
 	if a.CheckVehicleInInterLane(mapsim) { //Calculate Inter-lane XY and update coords
-		coords = CalculateXYInterLaneVehicle(a,mapsim)
+		coords = *CalculateXYInterLaneVehicle(a, mapsim)
 	}
-	
+
 	a.lastFetch = time
 
 	if a.hasReachedDestination(mapsim) {
