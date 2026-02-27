@@ -178,8 +178,13 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 			}
 			if a.isLaneFreeAtPos(m, desired_pos) && m.nodes[curr_node_id].agent.CanVehicleProceed(m, new_time, a, desired_pos.lane_id) {
 				//If lane is free to enter, then proceed to the requested position
-				m.nodes[curr_node_id].agent.AddTransitingVehicle(a, m, desired_pos)
-				m.lanes[a.pos.lane_id].RemoveVehicleFromQueue(a, m)
+				if CalculateDistance(m.lanes[a.pos.lane_id].end_pos,m.lanes[desired_pos.lane_id].start_pos) > 0{
+					m.nodes[curr_node_id].agent.AddTransitingVehicle(a, m, desired_pos)
+					m.lanes[a.pos.lane_id].RemoveVehicleFromQueue(a, m)
+				} else {
+					a.SwitchToNewLane(m, desired_pos)
+					pos = desired_pos
+				}
 			} else { //Otherwise wait
 				a.speed = 0
 				a.acc = 0
