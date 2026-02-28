@@ -100,7 +100,7 @@ func CalculateXYInterLaneVehicle(vehicle *Vehicle, mapsim *Map) *Position {
 	if !mapsim.nodes[curr_node_id].agent.isVehicleInTransitInterLane(vehicle, mapsim) {
 		return nil
 	}
-	_,progress := mapsim.nodes[curr_node_id].agent.GetInterLaneDistanceProgress(vehicle, mapsim)
+	_, progress := mapsim.nodes[curr_node_id].agent.GetInterLaneDistanceProgress(vehicle, mapsim)
 	start_lane_id := vehicle.pos.lane_id
 	end_lane_id := mapsim.nodes[curr_node_id].agent.GetInterLaneNextLane(vehicle, mapsim)
 
@@ -112,6 +112,52 @@ func CalculateXYInterLaneVehicle(vehicle *Vehicle, mapsim *Map) *Position {
 	new_y := mapsim.lanes[start_lane_id].end_pos.y + progress*dy
 
 	return &Position{x: new_x, y: new_y}
+}
+
+func isVehicleInterLaneConflicting(vehicle_transit_array *[]*InterLaneVehicleTransit, desired_lane LaneID, vehicle *Vehicle, mapsim *Map) bool {
+	for _, vta := range *vehicle_transit_array {
+		if vta != nil && VehicleInterLanesIntersect(vehicle.pos.lane_id, desired_lane, vta.start_lane, vta.end_lane, mapsim) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func VehicleInterLanesIntersect(start_lane1 LaneID, end_lane1 LaneID, start_lane2 LaneID, end_lane2 LaneID, mapsim *Map) bool {
+	if start_lane1 == start_lane2 && end_lane1 == end_lane2 { //We allow vehicles if they are in the same direction
+		return false
+	}
+	start_pos1 := mapsim.lanes[start_lane1].end_pos
+	end_pos1 := mapsim.lanes[end_lane1].start_pos
+	start_pos2 := mapsim.lanes[start_lane2].end_pos
+	end_pos2 := mapsim.lanes[end_lane2].start_pos
+
+	grad1 := (end_pos1.y - start_pos1.y) / (end_pos1.x - start_pos1.x)
+	grad2 := (end_pos2.y - start_pos2.y) / (end_pos2.x - start_pos2.x)
+
+	c1 := start_pos1.y - grad1*start_pos1.x
+	c2 := start_pos2.y - grad2*start_pos2.x
+
+	if grad1 == grad2 && c1 != c2 { //Parallel lanes have no intersection
+		return false
+	}
+
+	x_intersect := (c1 - c2) / (grad2 - grad1)
+	y_intersect := grad1*x_intersect + c1
+
+	if (x_intersect < min(start_pos1.x, end_pos1.x)) || (x_intersect > max(start_pos1.x, end_pos1.x)) || (y_intersect < min(start_pos1.y, end_pos1.y)) || (y_intersect > max(start_pos1.y, end_pos1.y)) {
+		return true
+	}
+	if (x_intersect < min(start_pos2.x, end_pos2.x)) || (x_intersect > max(start_pos2.x, end_pos2.x)) || (y_intersect < min(start_pos2.y, end_pos2.y)) || (y_intersect > max(start_pos2.y, end_pos2.y)) {
+		return true
+	}
+
+	if end_pos2 == end_pos1 {
+		return true
+	}
+
+	return false
 }
 
 type IntersectionAgent struct {
@@ -147,7 +193,7 @@ func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle
 	a.num_vehicles_processed++
 	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
 	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
-	
+
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
@@ -156,6 +202,11 @@ func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle
 			return false
 		}
 	}
+
+	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
+		return false
+	}
+
 	return true
 }
 
@@ -265,7 +316,7 @@ func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Veh
 	a.num_vehicles_processed++
 	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
 	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
-	
+
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
@@ -274,6 +325,11 @@ func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Veh
 			return false
 		}
 	}
+
+	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
+		return false
+	}
+
 	return true
 }
 
@@ -365,7 +421,7 @@ func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicl
 	a.num_vehicles_processed++
 	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
 	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
-	
+
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
@@ -374,6 +430,11 @@ func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicl
 			return false
 		}
 	}
+
+	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
+		return false
+	}
+
 	return true
 }
 
@@ -459,7 +520,7 @@ func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimT
 		a.num_vehicles_processed++
 		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
 		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
-		
+
 		//Check whether InterLane is free to proceed
 		next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 		if next_vehicle_id >= 0 {
@@ -468,6 +529,11 @@ func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimT
 				return false
 			}
 		}
+
+		if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
+			return false
+		}
+
 		return true
 	}
 
