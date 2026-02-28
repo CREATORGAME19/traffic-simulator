@@ -90,7 +90,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 			fetchresult := <-agent_channel
 			agent_fetch[fetchresult.ID] = fetchresult
 		}
-		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
+		for _, v := range rand.Perm(config_parameters.MAX_VEHICLES) {
 			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, mapsim.GetRealVehicleID(v))
 		}
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {

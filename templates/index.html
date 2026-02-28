@@ -71,10 +71,6 @@
                 renderer.renderControls();
                 renderer.renderVehicleUpdate();
 
-                for (let i = 0; i < msg_data.length; i++) {
-                    console.log("Vehicle ID: " + msg_data[i].Vehicle_ID + ", Time: " + msg_data[i].Time + ", X: " + msg_data[i].X + ", Y: " + msg_data[i].Y + ", Status: " + msg_data[i].Status + "\n");
-                }
-                console.log("\n");
                 socket.send(
                     JSON.stringify(
                         {Type: "ACK", Data: null}

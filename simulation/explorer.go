@@ -89,18 +89,6 @@ func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, logger 
 			return
 		}
 
-		run := 0
-		for logger.current_run-run > 0 { //Resend all lost packets in order if page connection is lost.
-			if err := SendWebVehicleMessage(conn, &writer, logger.vehicle_fetch_history[run]); err != nil {
-				fmt.Println("Write Error:", err)
-				return
-			}
-			if err := <-webReaderChan; err != nil {
-				fmt.Println(err)
-				return
-			}
-			run++
-		}
 		if err := SendLoadingDoneMessage(conn, &writer); err != nil {
 			fmt.Println("Write Error:", err)
 			return
