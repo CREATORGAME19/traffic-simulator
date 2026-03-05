@@ -191,8 +191,6 @@ func (a *IntersectionAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *V
 
 func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
 	a.num_vehicles_processed++
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
@@ -206,6 +204,9 @@ func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle
 	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
 		return false
 	}
+
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, Time: time, NodeID: a.road_node_id, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 	return true
 }
@@ -314,8 +315,6 @@ func (a *SpawnerAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicl
 
 func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
 	a.num_vehicles_processed++
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
@@ -329,6 +328,9 @@ func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Veh
 	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
 		return false
 	}
+
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 	return true
 }
@@ -419,8 +421,6 @@ func (a *SinkAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) 
 
 func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool {
 	a.num_vehicles_processed++
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
@@ -434,6 +434,9 @@ func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicl
 	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
 		return false
 	}
+
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 	return true
 }
@@ -518,8 +521,6 @@ func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimT
 	road_node := mapsim.nodes[a.road_node_id]
 	if road_node.lanes_in[a.params.time_interval_index] == vehicle.pos.lane_id {
 		a.num_vehicles_processed++
-		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
-		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 		//Check whether InterLane is free to proceed
 		next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
@@ -533,6 +534,9 @@ func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimT
 		if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
 			return false
 		}
+
+		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: vehicle.pos.lane_id, EventType: LoggerVehicleEventLaneOut}
+		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: desired_lane, EventType: LoggerVehicleEventLaneIn}
 
 		return true
 	}
