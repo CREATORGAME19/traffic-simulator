@@ -83,20 +83,28 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 		}
 		minDuration := time.Duration((SIM_TIME_STEP / mapsim.config_parameters.SIM_RATE) * 1000000000) //Defines time duration for each iteration
 		start := time.Now()
+
+		//Activate StaticAgents
 		for _, a := range rand.Perm(len(mapsim.nodes)) { //Update spawners/intersections each time
 			mapsim.nodes[a].agent.Poke(mapsim, sim_time, agent_channel)
 		}
+		//Fetch from agents
 		for m := 0; m < len(mapsim.nodes); m++ {
 			fetchresult := <-agent_channel
 			agent_fetch[fetchresult.ID] = fetchresult
 		}
+
+		//Activate VehicleAgents
 		for _, v := range rand.Perm(config_parameters.MAX_VEHICLES) {
 			go mapsim.vehicles.vehicle_array[v].FetchVehicleSim(mapsim, sim_time, vehicle_channel, mapsim.GetRealVehicleID(v))
 		}
+		//Fetch from VehicleAgents
 		for v := 0; v < config_parameters.MAX_VEHICLES; v++ {
 			fetchresult := <-vehicle_channel
 			vehicle_locations[mapsim.GetMapArrayVehicleIDIndex(fetchresult.ID)] = fetchresult
 		}
+
+		//Send to Logger both StaticAgent and VehicleAgent data
 		for m := 0; m < len(mapsim.nodes); m++ {
 			a_copy := agent_fetch[m]
 			logger_chan <- SimFetchResult{static_agent_fetch_result: &a_copy}
@@ -105,6 +113,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 			v_copy := vehicle_locations[v]
 			logger_chan <- SimFetchResult{vehicle_fetch_result: &v_copy}
 		}
+
 		sim_time += SimTime(SIM_TIME_STEP)
 		elapsed := time.Since(start)
 		time.Sleep(minDuration - elapsed)

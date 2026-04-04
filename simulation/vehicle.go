@@ -37,13 +37,15 @@ type Vehicle struct {
 type VehicleProp struct {
 	max_speed        float64
 	max_acc          float64
+	max_decc         float64
 	minimum_gap_size float64
 }
 
-func NewVehicleProp(max_speed float64, max_acc float64, minimum_gap_size float64) VehicleProp {
+func NewVehicleProp(max_speed float64, max_acc float64, max_decc float64, minimum_gap_size float64) VehicleProp {
 	return VehicleProp{
 		max_speed:        max_speed,
 		max_acc:          max_acc,
+		max_decc:         max_decc,
 		minimum_gap_size: minimum_gap_size,
 	}
 }
@@ -178,7 +180,7 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 			}
 			if a.isLaneFreeAtPos(m, desired_pos) && m.nodes[curr_node_id].agent.CanVehicleProceed(m, new_time, a, desired_pos.lane_id) {
 				//If lane is free to enter, then proceed to the requested position
-				if CalculateDistance(m.lanes[a.pos.lane_id].end_pos,m.lanes[desired_pos.lane_id].start_pos) > 0{
+				if CalculateDistance(m.lanes[a.pos.lane_id].end_pos, m.lanes[desired_pos.lane_id].start_pos) > 0 {
 					m.nodes[curr_node_id].agent.AddTransitingVehicle(a, m, desired_pos)
 					m.lanes[a.pos.lane_id].RemoveVehicleFromQueue(a, m)
 				} else {
@@ -282,19 +284,19 @@ func (a *Vehicle) CalculateAcceleration(gap_ahead float64, next_vehicle *Vehicle
 				new_acc = min(0, ((next_vehicle.speed*0.1)-a.speed)/float64(time_delta))
 				//Can be bad if the vehicle behind goes way too fast!
 			}
-		} else if gap_ahead <= 3*stopping_gap {
+		} else if gap_ahead <= 2.5*stopping_gap {
 			dist_travelled := vehicle_ahead_next_advance + gap_ahead - stopping_gap
 			new_acc = (math.Pow(next_vehicle.speed, 2) - math.Pow(a.speed, 2)) / (2 * dist_travelled)
 		}
 	} else if AlmostEqual(gap_ahead, 0) {
 		new_acc = 0
-	} else if gap_ahead < 3*stopping_gap {
+	} else if gap_ahead < 2.5*stopping_gap {
 		new_acc = (-math.Pow(a.speed, 2)) / (2 * gap_ahead)
 		if a.speed < 2 {
 			new_acc = max(new_acc, (2-a.speed)/float64(time_delta))
 		}
 	}
-	return new_acc
+	return max(min(new_acc, a.prop.max_acc), a.prop.max_decc)
 }
 
 func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel chan VehicleFetchResult, id VehicleID) error {
