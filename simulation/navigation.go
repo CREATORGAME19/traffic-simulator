@@ -1,9 +1,9 @@
 package simulation
 
 import (
+	"container/heap"
 	"fmt"
 	"math"
-	"container/heap"
 	"math/rand/v2"
 )
 
@@ -18,9 +18,7 @@ type priorityQueue[T any] []*item[T]
 func (pq priorityQueue[T]) Len() int { return len(pq) }
 
 func (pq priorityQueue[T]) Less(i, j int) bool {
-	// We want heap.Pop to give us the item with the highest,
-	// not lowest, priority so we use greater than here.
-	return pq[i].priority > pq[j].priority
+	return pq[i].priority < pq[j].priority
 }
 
 func (pq priorityQueue[T]) Swap(i, j int) {
@@ -41,10 +39,10 @@ func (pq *priorityQueue[T]) Pop() any {
 
 func (a *Vehicle) CalculateVehiclePath(mapsim *Map, start_node_id RoadNodeID) error {
 	end_node_id := a.destination
-	
+
 	came_from := make([]*[]RoadNodeID, len(mapsim.nodes)) //Could probably have an array of sets here instead for better performance
 	for i := 0; i < len(came_from); i++ {
-		l := make([]RoadNodeID,0)
+		l := make([]RoadNodeID, 0)
 		came_from[i] = &l
 	}
 
@@ -52,13 +50,13 @@ func (a *Vehicle) CalculateVehiclePath(mapsim *Map, start_node_id RoadNodeID) er
 	heap.Init(pq)
 
 	gScore := make([]float64, len(mapsim.nodes))
-	for i:=0; i < len(gScore); i++ {
+	for i := 0; i < len(gScore); i++ {
 		gScore[i] = math.Inf(1)
 	}
 	gScore[start_node_id] = 0
 
 	heap.Push(pq, &item[RoadNodeID]{value: start_node_id, priority: CalculateCostHeuristicFunction(mapsim, start_node_id, end_node_id)})
-	for (pq.Len() > 0) {
+	for pq.Len() > 0 {
 		current := heap.Pop(pq).(*item[RoadNodeID]).value
 
 		if current == end_node_id {
@@ -70,15 +68,15 @@ func (a *Vehicle) CalculateVehiclePath(mapsim *Map, start_node_id RoadNodeID) er
 		for l := range lanes_out {
 			lane_id := lanes_out[l]
 			next_node_id := mapsim.lanes[lane_id].to_node
-			new_G := gScore[current]+(0.5*mapsim.lanes[lane_id].distance)+(0.5*float64(mapsim.lanes[lane_id].vehicle_queue.usage))
+			new_G := gScore[current] + (0.5 * mapsim.lanes[lane_id].distance) + (0.5 * float64(mapsim.lanes[lane_id].vehicle_queue.usage))
 			if new_G < gScore[next_node_id] {
 				came_from[next_node_id] = &[]RoadNodeID{current}
 				gScore[next_node_id] = new_G
 
-				heap.Push(pq, &item[RoadNodeID]{value: next_node_id, priority: new_G+CalculateCostHeuristicFunction(mapsim, next_node_id, end_node_id)})
+				heap.Push(pq, &item[RoadNodeID]{value: next_node_id, priority: new_G + CalculateCostHeuristicFunction(mapsim, next_node_id, end_node_id)})
 			} else if new_G == gScore[next_node_id] {
-				*came_from[next_node_id] = append(*came_from[next_node_id],current)
-				heap.Push(pq, &item[RoadNodeID]{value: next_node_id, priority: new_G+CalculateCostHeuristicFunction(mapsim, next_node_id, end_node_id)})
+				*came_from[next_node_id] = append(*came_from[next_node_id], current)
+				heap.Push(pq, &item[RoadNodeID]{value: next_node_id, priority: new_G + CalculateCostHeuristicFunction(mapsim, next_node_id, end_node_id)})
 			}
 		}
 	}
@@ -89,18 +87,18 @@ func CalculateCostHeuristicFunction(mapsim *Map, node_id RoadNodeID, end_node_id
 	return CalculateDistance(mapsim.nodes[node_id].pos, mapsim.nodes[end_node_id].pos) //Calculates distance between curr_node and end_node
 }
 
-func (a *Vehicle) reconstructPath(mapsim *Map,came_from []*[]RoadNodeID, start_node_id RoadNodeID, end_node_id RoadNodeID) {
+func (a *Vehicle) reconstructPath(mapsim *Map, came_from []*[]RoadNodeID, start_node_id RoadNodeID, end_node_id RoadNodeID) {
 	path := []RoadNodeID{end_node_id}
 	current := came_from[end_node_id]
 	for !(ContainsRoadNodeID(current, start_node_id)) {
 		chosen_node := (*current)[rand.IntN(len(*current))]
-		path = append([]RoadNodeID{chosen_node},path...)
+		path = append([]RoadNodeID{chosen_node}, path...)
 		current = came_from[chosen_node]
 	}
 	if mapsim.config_parameters.INCREMENT_VEHICLE_PATH <= 0 {
 		a.AddVehiclePath(path)
 	} else {
-		a.AddVehiclePath(path[0:min(mapsim.config_parameters.INCREMENT_VEHICLE_PATH,len(path))])
+		a.AddVehiclePath(path[0:min(mapsim.config_parameters.INCREMENT_VEHICLE_PATH, len(path))])
 	}
 }
 
