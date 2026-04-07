@@ -89,5 +89,5 @@ def plot_journey_times(log_file_path, target_destination=7):
     plt.show()
 
 if __name__ == "__main__":
-    log_file_name = 'simulation_log.jsonl' 
+    log_file_name = '../simulation_log.jsonl' 
     plot_journey_times(log_file_name, target_destination=7)
