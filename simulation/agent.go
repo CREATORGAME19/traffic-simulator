@@ -1,6 +1,9 @@
 package simulation
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+)
 
 type StaticAgent interface {
 	Poke(mapsim *Map, time SimTime, agent_channel chan StaticAgentFetchResult)
@@ -34,6 +37,8 @@ const (
 	TrafficLightIntersectionAgentType StaticAgentType = 3
 )
 
+const spawn_stdDev = 120 //Standard Deviation of spawn times
+
 func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop map[string]any, vehicle_log_channel chan LoggerVehicleEvent, config_parameters *ConfigParameters) (StaticAgent, error) {
 	switch agent_type {
 	case IntersectionAgentType:
@@ -47,7 +52,7 @@ func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop m
 		if !ok {
 			return nil, fmt.Errorf("Error: Spawner Agent Param expects 'spawn_rate' as a float64 parameter.")
 		}
-		return NewSpawnerAgent(node_id, &SpawnerAgentParams{spawn_rate: spawn_rate, lastSpawnTime: 0}, vehicle_log_channel, config_parameters), nil
+		return NewSpawnerAgent(node_id, &SpawnerAgentParams{spawn_rate: spawn_rate, nextSpawnTime: SimTime(0.5 + (spawn_stdDev * rand.NormFloat64()))}, vehicle_log_channel, config_parameters), nil
 	case SinkAgentType:
 		return NewSinkAgent(node_id, &SinkAgentParams{}, vehicle_log_channel, config_parameters), nil
 	case TrafficLightIntersectionAgentType:
@@ -271,7 +276,7 @@ type SpawnerAgent struct {
 
 type SpawnerAgentParams struct {
 	spawn_rate    float64
-	lastSpawnTime SimTime
+	nextSpawnTime SimTime
 }
 
 func NewSpawnerAgent(node_id RoadNodeID, params *SpawnerAgentParams, vehicle_log_channel chan LoggerVehicleEvent, config_parameters *ConfigParameters) *SpawnerAgent {
@@ -294,7 +299,7 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		return
 	}
 
-	if (time - a.params.lastSpawnTime) >= SimTime(1/a.params.spawn_rate) {
+	if time >= a.params.nextSpawnTime {
 		if mapsim.vehicles.next_empty >= mapsim.config_parameters.MAX_VEHICLES {
 			//println("Vehicle limit reached!") //WARNING
 			return
@@ -303,7 +308,7 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(next_vehicle_id), time, a.road_node_id, mapsim.FindADestinationNode())
 		mapsim.vehicles.vehicle_id_index_array[mapsim.vehicles.next_empty]++
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
-		a.params.lastSpawnTime = time
+		a.params.nextSpawnTime = time + SimTime(1/a.params.spawn_rate) + SimTime(spawn_stdDev*rand.NormFloat64())
 		a.num_vehicles_processed++
 		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: next_vehicle_id, NodeID: a.road_node_id, Time: time, LaneID: -1, EventType: LoggerVehicleEventSpawn} //Technically vehicle is not yet on a lane upon spawn
 	}
