@@ -20,7 +20,7 @@ class Renderer {
         this.sim_rate = 0;
         this.web_socket = web_socket;
 
-        this.scaleFactor = 0.5;
+        this.scaleFactor = 0.2;
         this.xScaleOffset = 0;
         this.yScaleOffset = 0;
 
@@ -189,23 +189,23 @@ class Renderer {
                 switch (this.node_data[i].AgentType) {
                     case 0:
                         var class_name = 'intersection-node';
-                        var radius = 16;
+                        var radius = 6;
                         break;
                     case 1:
                         var class_name = 'spawner-node';
-                        var radius = 5;
+                        var radius = 4;
                         break;
                     case 2:
                         var class_name = 'sink-node';
-                        var radius = 5;
+                        var radius = 4;
                         break;
                     case 3:
                         var class_name = 'traffic-light-node';
-                        var radius = 16;
+                        var radius = 6;
                         break;
                     default:
                         var class_name = 'road-node';
-                        var radius = 5;
+                        var radius = 4;
                 }
                 node.setAttribute("class", class_name);
                 node.setAttribute("r",radius);

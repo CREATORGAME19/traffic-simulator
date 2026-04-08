@@ -33,7 +33,7 @@ circle.road-node {
 
 line {
     stroke: #000000;
-    stroke-width: 2;
+    stroke-width: 0.5;
 }
 
 #pauseBtn {
