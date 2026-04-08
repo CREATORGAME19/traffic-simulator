@@ -60,7 +60,6 @@ func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop m
 		if !ok {
 			return nil, fmt.Errorf("Error: Traffic Light Intersection Agent Param expects 'time_intervals' as a parameter. 'time_intervals' not found as valid param!")
 		}
-		fmt.Println(param)
 		raw_time_intervals, ok := param.([]interface{})
 		if !ok {
 			return nil, fmt.Errorf("Error: Traffic Light Intersection Agent Param expects 'time_intervals' as an array parameter.")

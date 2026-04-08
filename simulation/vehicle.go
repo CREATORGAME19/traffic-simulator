@@ -310,7 +310,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 		curr_node := mapsim.nodes[origin_node_id]
 		new_pos, err := a.FindNextLanePosition(mapsim, curr_node.id)
 		if err != nil {
-			println(err)
+			fmt.Println(err)
 			return err
 		}
 		a.CheckAndSetPosition(mapsim, new_pos.lane_id, 0)
@@ -323,7 +323,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 
 	new_pos, err := a.CalculateNewPos(mapsim, a.lastFetch, time, curr_pos)
 	if err != nil {
-		println(err)
+		fmt.Println(err)
 		return err
 	}
 
