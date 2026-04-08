@@ -40,12 +40,12 @@ type Lane struct {
 	to_node       RoadNodeID
 	distance      float64
 	vehicle_queue *VehicleLaneQueue
-
+	speed_limit   float64
 	// more Lane Properties here (like speed limit)
 }
 
-func NewLane(id LaneID, start_pos Position, end_pos Position, from RoadNodeID, to RoadNodeID, config_parameters *ConfigParameters) Lane {
-	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from_node: from, to_node: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue(config_parameters)}
+func NewLane(id LaneID, start_pos Position, end_pos Position, from RoadNodeID, to RoadNodeID, speed_limit float64, config_parameters *ConfigParameters) Lane {
+	return Lane{id: id, start_pos: start_pos, end_pos: end_pos, from_node: from, to_node: to, distance: CalculateDistance(start_pos, end_pos), vehicle_queue: EmptyVehicleLaneQueue(config_parameters), speed_limit: speed_limit}
 }
 
 func CalculateDistance(p1 Position, p2 Position) float64 {

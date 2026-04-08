@@ -45,6 +45,7 @@ type LaneConfig struct {
 	End_Position   PositionConfig `json:"End_Position"`
 	From_Node      RoadNodeID     `json:"From_Node"`
 	To_Node        RoadNodeID     `json:"To_Node"`
+	Speed_Limit    float64        `json:Speed_Limit`
 }
 
 type PositionConfig struct {
@@ -92,7 +93,7 @@ func ParseExtraArg(arg string, config_parameters *ConfigParameters) error {
 	}
 	key := res[0]
 	value, err := strconv.ParseFloat(res[1], 64)
-	if err != nil && key != "LOG_FILE"{
+	if err != nil && key != "LOG_FILE" {
 		return fmt.Errorf("Invalid Config Parameter!")
 	}
 	switch key {

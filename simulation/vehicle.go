@@ -249,8 +249,10 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	}
 
 	a.speed = new_speed
-
-	new_acc := a.CalculateAcceleration(gap_ahead, next_vehicle, new_time-old_time)
+	
+	max_speed := max(a.prop.max_speed, m.lanes[a.pos.lane_id].speed_limit)
+	
+	new_acc := a.CalculateAcceleration(gap_ahead, next_vehicle, new_time-old_time, max_speed)
 
 	a.acc = new_acc
 
@@ -271,9 +273,9 @@ func (a *Vehicle) CalculateDistanceTravelled(time_delta SimTime) float64 { //Lin
 	return (float64(time_delta) * a.speed) + (0.5 * a.acc * math.Pow(float64(time_delta), 2))
 }
 
-func (a *Vehicle) CalculateAcceleration(gap_ahead float64, next_vehicle *Vehicle, time_delta SimTime) float64 {
+func (a *Vehicle) CalculateAcceleration(gap_ahead float64, next_vehicle *Vehicle, time_delta SimTime, max_speed float64) float64 {
 	stopping_gap := max(a.prop.minimum_gap_size, 2*a.speed) //2s stop gap
-	new_acc := ((a.prop.max_speed - a.speed) / a.prop.max_speed) * a.prop.max_acc
+	new_acc := ((max_speed - a.speed) / max_speed) * a.prop.max_acc
 	if next_vehicle != nil {
 		vehicle_ahead_next_advance := next_vehicle.CalculateDistanceTravelled(time_delta)
 		if gap_ahead < stopping_gap {

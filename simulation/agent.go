@@ -37,7 +37,7 @@ const (
 	TrafficLightIntersectionAgentType StaticAgentType = 3
 )
 
-const spawn_stdDev = 120 //Standard Deviation of spawn times
+const spawn_stdDev = 30 //Standard Deviation of spawn times
 
 func NewStaticAgent(node_id RoadNodeID, agent_type StaticAgentType, agent_prop map[string]any, vehicle_log_channel chan LoggerVehicleEvent, config_parameters *ConfigParameters) (StaticAgent, error) {
 	switch agent_type {

@@ -40,12 +40,16 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 	}
 
 	for l := 0; l < len(lanes); l++ {
+		if map_config.Lanes[l].Speed_Limit == 0 {
+			map_config.Lanes[l].Speed_Limit = 13 //30mph
+		}
 		lanes[int(map_config.Lanes[l].ID)] = NewLane(
 			map_config.Lanes[l].ID, //Should be equal to l
 			NewPosition(map_config.Lanes[l].Start_Position.X, map_config.Lanes[l].Start_Position.Y),
 			NewPosition(map_config.Lanes[l].End_Position.X, map_config.Lanes[l].End_Position.Y),
 			map_config.Lanes[l].From_Node,
 			map_config.Lanes[l].To_Node,
+			map_config.Lanes[l].Speed_Limit,
 			config_parameters,
 		)
 	}
@@ -65,8 +69,6 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 		fmt.Println("Error opening browser!")
 		return
 	}
-
-	fmt.Println("Map Simulation: ", mapsim)
 
 	// Initialize Vehicles
 	vehicle_locations := make([]VehicleFetchResult, config_parameters.MAX_VEHICLES)

@@ -9,7 +9,7 @@ func CreateVehicle(id VehicleID, curr_time SimTime, origin RoadNodeID, destinati
 	v := NewVehicle(
 		id,
 		VehicleProp{
-			max_speed:        15,
+			max_speed:        13,
 			max_acc:          (rand.Float64() * 2) + 1,
 			max_decc:         -10,
 			minimum_gap_size: 6,
