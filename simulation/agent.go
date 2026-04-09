@@ -200,7 +200,7 @@ func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
 		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
-		if next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+		if (next_vehicle_info != nil) && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
 			return false
 		}
 	}
@@ -307,7 +307,9 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(next_vehicle_id), time, a.road_node_id, mapsim.FindADestinationNode())
 		mapsim.vehicles.vehicle_id_index_array[mapsim.vehicles.next_empty]++
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
-		a.params.nextSpawnTime = time + SimTime(1/a.params.spawn_rate) + SimTime(spawn_stdDev*rand.NormFloat64())
+		for a.params.nextSpawnTime <= time {
+			a.params.nextSpawnTime = time + SimTime(1/a.params.spawn_rate) + SimTime(spawn_stdDev*rand.NormFloat64())
+		}
 		a.num_vehicles_processed++
 		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: next_vehicle_id, NodeID: a.road_node_id, Time: time, LaneID: -1, EventType: LoggerVehicleEventSpawn} //Technically vehicle is not yet on a lane upon spawn
 	}
