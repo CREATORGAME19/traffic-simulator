@@ -1,7 +1,7 @@
 import json
 import matplotlib.pyplot as plt
 
-def plot_journey_times(log_file_path, target_destination=7):
+def plot_journey_times(log_file_path):
     spawn_times = {}
     source_nodes = {}
     destination_nodes = {}
@@ -40,9 +40,8 @@ def plot_journey_times(log_file_path, target_destination=7):
                     src_node = data.get("source_node_id", source_nodes.get(vid))
                     dest_node = data.get("destination_node_id", destination_nodes.get(vid))
                     
-                    if dest_node != target_destination:
+                    if dest_node != 42 or src_node != 7:
                         continue
-                    
                     if spawn_time is not None and current_time is not None and src_node is not None:
                         journey_time = current_time - spawn_time
                         
@@ -59,12 +58,12 @@ def plot_journey_times(log_file_path, target_destination=7):
                 continue
                 
     if not all_journey_times:
-        print(f"No VEHICLE_DESTROY events found ending at destination node {target_destination}.")
+        print(f"No VEHICLE_DESTROY events found.")
         return
 
     average_journey = sum(all_journey_times) / len(all_journey_times)
-    print(f"Total vehicles arriving at Node {target_destination}: {len(all_journey_times)}")
-    print(f"Average journey time to Node {target_destination}: {average_journey:.2f} seconds")
+    print(f"Total vehicles arriving: {len(all_journey_times)}")
+    print(f"Average journey time: {average_journey:.2f} seconds")
 
     plt.figure(figsize=(10, 6))
     
@@ -80,7 +79,7 @@ def plot_journey_times(log_file_path, target_destination=7):
     
     plt.xlabel('Simulation Time (seconds)', fontsize=12)
     plt.ylabel('Journey Time (seconds)', fontsize=12)
-    plt.title(f'Journey Times for Vehicles terminating at Destination Node {target_destination}', fontsize=14)
+    plt.title(f'Journey Times for Vehicles', fontsize=14)
     plt.grid(True, linestyle='--', alpha=0.7)
     
     plt.legend(title="Source Node")
@@ -90,4 +89,4 @@ def plot_journey_times(log_file_path, target_destination=7):
 
 if __name__ == "__main__":
     log_file_name = '../simulation_log.jsonl' 
-    plot_journey_times(log_file_name, target_destination=7)
+    plot_journey_times(log_file_name)

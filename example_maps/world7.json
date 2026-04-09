@@ -40,7 +40,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.1
       }
     },
     {
@@ -55,7 +55,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.27
       }
     },
     {
@@ -150,7 +150,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.16
       }
     },
     {
@@ -184,7 +184,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.13
       }
     },
     {
@@ -435,7 +435,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.23
       }
     },
     {
@@ -478,7 +478,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.18
       }
     },
     {
@@ -658,7 +658,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.06
       }
     },
     {
@@ -673,7 +673,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.49
       }
     },
     {
@@ -688,7 +688,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.28
       }
     },
     {
@@ -886,7 +886,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.15
       }
     },
     {
@@ -901,7 +901,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.05
       }
     },
     {
@@ -916,7 +916,7 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.8
+        "spawn_rate": 0.1
       }
     },
     {
