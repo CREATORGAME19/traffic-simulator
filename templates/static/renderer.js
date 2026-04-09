@@ -222,7 +222,7 @@ class Renderer {
             if (vehicle == null) {
                 var vehicle = document.createElementNS(SVG_NS, "image");
                 vehicle.setAttribute("id", "vehicle_"+String(i));
-                vehicle.setAttribute("href", '/static/images/bus-logo.png');
+                vehicle.setAttribute("href", '/static/images/car-logo.png');
                 vehicle.setAttribute("style", 'pointer-events: all;cursor: pointer;');
                 vehicle.addEventListener("click", () => { 
                     this.createSvgPopup("vehicle", i, `Vehicle ${this.vehicle_data[i].ID}`, `X: ${this.vehicle_data[i].X || 0}, Y: ${this.vehicle_data[i].Y || 0}`);
@@ -232,8 +232,8 @@ class Renderer {
             }
             vehicle.setAttribute("x", this.getRenderX(this.vehicle_data[i].X)-(15/t.k));
             vehicle.setAttribute("y", this.getRenderY(this.vehicle_data[i].Y)-(15/t.k));
-            vehicle.setAttribute("width", 30/t.k);
-            vehicle.setAttribute("height", 30/t.k);
+            vehicle.setAttribute("width", 32/t.k);
+            vehicle.setAttribute("height", 32/t.k);
             vehicle.classList.toggle("invisible-vehicle", this.vehicle_data[i].Status == 0);
         }
         this.updateSvgPopup();

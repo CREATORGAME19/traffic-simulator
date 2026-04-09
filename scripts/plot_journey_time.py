@@ -74,15 +74,16 @@ def plot_journey_times(log_file_path):
             marker='o', 
             alpha=0.7, 
             edgecolors='black',
-            label=f'Source Node {src_node}'
+            #label=f'Source Node {src_node}'
+            s=150
         )
     
-    plt.xlabel('Simulation Time (seconds)', fontsize=12)
-    plt.ylabel('Journey Time (seconds)', fontsize=12)
-    plt.title(f'Journey Times for Vehicles', fontsize=14)
+    plt.xlabel('Simulation Time (seconds)', fontsize=16)
+    plt.ylabel('Journey Time (seconds)', fontsize=16)
+    #plt.title(f'Journey Times for Vehicles', fontsize=14)
     plt.grid(True, linestyle='--', alpha=0.7)
     
-    plt.legend(title="Source Node")
+    #plt.legend(title="Source Node")
     
     plt.tight_layout()
     plt.show()
