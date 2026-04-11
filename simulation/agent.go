@@ -326,7 +326,7 @@ func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Veh
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
 		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
-		if next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+		if next_vehicle_info != nil && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
 			return false
 		}
 	}
@@ -432,7 +432,7 @@ func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicl
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
 		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
-		if next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+		if next_vehicle_info != nil && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
 			return false
 		}
 	}
@@ -532,7 +532,7 @@ func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimT
 		next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 		if next_vehicle_id >= 0 {
 			next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
-			if next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+			if next_vehicle_info != nil && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
 				return false
 			}
 		}
