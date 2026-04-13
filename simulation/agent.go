@@ -10,6 +10,7 @@ type StaticAgent interface {
 	Descriptor() StaticAgentType
 	DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle)
 	CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicle, desired_lane LaneID) bool
+	SendLogMessage(log_msg LoggerVehicleEvent)
 
 	//Inter-Lane functions
 	AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition)
@@ -215,6 +216,10 @@ func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle
 	return true
 }
 
+func (a *IntersectionAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
+	a.vehicle_log_channel <- log_msg
+} 
+
 func (a *IntersectionAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
 	end_lane_id := desired_pos.lane_id
@@ -341,6 +346,10 @@ func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Veh
 	return true
 }
 
+func (a *SpawnerAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
+	a.vehicle_log_channel <- log_msg
+} 
+
 func (a *SpawnerAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
 	end_lane_id := desired_pos.lane_id
@@ -446,6 +455,10 @@ func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicl
 
 	return true
 }
+
+func (a *SinkAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
+	a.vehicle_log_channel <- log_msg
+} 
 
 func (a *SinkAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
@@ -561,6 +574,10 @@ func (a *TrafficLightIntersectionAgent) Poke(mapsim *Map, time SimTime, agent_ch
 	agent_channel <- StaticAgentFetchResult{ID: a.road_node_id, Time: time, VehiclesProcessed: a.num_vehicles_processed}
 	a.num_vehicles_processed = 0
 }
+
+func (a *TrafficLightIntersectionAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
+	a.vehicle_log_channel <- log_msg
+} 
 
 func (a *TrafficLightIntersectionAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id

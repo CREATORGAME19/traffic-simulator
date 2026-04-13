@@ -66,7 +66,7 @@ func NewVehicle(id VehicleID, prop VehicleProp, destination RoadNodeID, origin R
 	return &res
 }
 
-func (a *Vehicle) CheckAndSetPosition(m *Map, lane_id LaneID, progress float64) bool {
+func (a *Vehicle) CheckAndSetPosition(m *Map, lane_id LaneID, progress float64, time SimTime) bool {
 	//Returns false if lane is not free
 	desired_pos := VehiclePosition{
 		lane_id:  lane_id,
@@ -78,6 +78,7 @@ func (a *Vehicle) CheckAndSetPosition(m *Map, lane_id LaneID, progress float64) 
 	a.pos = desired_pos
 	new_lane := a.GetCurrentLane(m)
 	new_lane.AddVehicleToQueue(a, m)
+	m.nodes[new_lane.from_node].agent.SendLogMessage(LoggerVehicleEvent{VehicleID: a.id, Time: time, NodeID: new_lane.from_node, LaneID: lane_id, EventType: LoggerVehicleEventLaneIn})
 	return true
 }
 
@@ -315,7 +316,7 @@ func (a *Vehicle) FetchVehicleSim(mapsim *Map, time SimTime, vehicle_channel cha
 			fmt.Println(err)
 			return err
 		}
-		a.CheckAndSetPosition(mapsim, new_pos.lane_id, 0)
+		a.CheckAndSetPosition(mapsim, new_pos.lane_id, 0, time)
 
 		coords := curr_node.pos
 		a.lastFetch = time
