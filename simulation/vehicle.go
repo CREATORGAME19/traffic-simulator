@@ -39,14 +39,16 @@ type VehicleProp struct {
 	max_acc          float64
 	max_decc         float64
 	minimum_gap_size float64
+	v2v_lookahead    int64
 }
 
-func NewVehicleProp(max_speed float64, max_acc float64, max_decc float64, minimum_gap_size float64) VehicleProp {
+func NewVehicleProp(max_speed float64, max_acc float64, max_decc float64, minimum_gap_size float64, v2v_lookahead int64) VehicleProp {
 	return VehicleProp{
 		max_speed:        max_speed,
 		max_acc:          max_acc,
 		max_decc:         max_decc,
 		minimum_gap_size: minimum_gap_size,
+		v2v_lookahead: v2v_lookahead,
 	}
 }
 
@@ -250,10 +252,10 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	}
 
 	a.speed = new_speed
-	
+
 	max_speed := max(a.prop.max_speed, m.lanes[a.pos.lane_id].speed_limit)
-	
-	new_acc := a.CalculateAcceleration(gap_ahead, next_vehicle, new_time-old_time, max_speed)
+
+	new_acc := a.CalculateAcceleration(m, gap_ahead, next_vehicle, new_time-old_time, max_speed)
 
 	a.acc = new_acc
 
@@ -274,8 +276,15 @@ func (a *Vehicle) CalculateDistanceTravelled(time_delta SimTime) float64 { //Lin
 	return (float64(time_delta) * a.speed) + (0.5 * a.acc * math.Pow(float64(time_delta), 2))
 }
 
-func (a *Vehicle) CalculateAcceleration(gap_ahead float64, next_vehicle *Vehicle, time_delta SimTime, max_speed float64) float64 {
-	stopping_gap := max(a.prop.minimum_gap_size, 2*a.speed) //2s stop gap
+func (a *Vehicle) CalculateAcceleration(m *Map, gap_ahead float64, next_vehicle *Vehicle, time_delta SimTime, max_speed float64) float64 {
+	effective_v2v_lookahead := a.prop.v2v_lookahead
+	if effective_v2v_lookahead == 0 || (next_vehicle != nil && next_vehicle.prop.v2v_lookahead == 0) {
+		effective_v2v_lookahead = 0
+	} else if next_vehicle != nil {
+		//Fetch next v2v_lookahead vehicles
+		effective_v2v_lookahead = a.FindMaxV2VLookAhead(m)
+	}
+	stopping_gap := max(a.prop.minimum_gap_size, (2/float64(1+effective_v2v_lookahead))*a.speed) //2s stop gap
 	new_acc := ((max_speed - a.speed) / max_speed) * a.prop.max_acc
 	if next_vehicle != nil {
 		vehicle_ahead_next_advance := next_vehicle.CalculateDistanceTravelled(time_delta)
@@ -409,4 +418,24 @@ func (a *Vehicle) GetNextNodeVehiclePath() RoadNodeID {
 func (a *Vehicle) CheckVehicleInInterLane(m *Map) bool {
 	curr_node_id := m.lanes[a.pos.lane_id].to_node
 	return m.nodes[curr_node_id].agent.isVehicleInTransitInterLane(a, m)
+}
+
+func (a *Vehicle) FindMaxV2VLookAhead(m *Map) int64 {
+	curr_lane := a.GetCurrentLane(m)
+	vehicle_ahead := curr_lane.FindNextVehicleAhead(m, a)
+	if vehicle_ahead == nil {
+		return 0
+	}
+	curr_vehicle := vehicle_ahead
+	max_i := 1
+	for i := 2; int64(i) <= a.prop.v2v_lookahead; i++ {
+		vehicle_ahead = curr_lane.FindNextVehicleAhead(m, curr_vehicle)
+		if vehicle_ahead == nil {
+			return int64(max_i)
+		}
+		if vehicle_ahead.prop.v2v_lookahead > 0 {
+			max_i = i
+		}
+	}
+	return int64(max_i)
 }
