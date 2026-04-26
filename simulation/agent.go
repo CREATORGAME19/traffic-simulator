@@ -3,6 +3,7 @@ package simulation
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 )
 
 type StaticAgent interface {
@@ -87,15 +88,23 @@ type InterLaneVehicleTransit struct {
 	progress   float64
 }
 
-func GetInterLaneNextVehicle(vehicle_transit_array *[]*InterLaneVehicleTransit, start_lane LaneID, end_lane LaneID, progress float64, m *Map) VehicleID {
+type InterLaneVehicleTransitItem struct {
+	t *InterLaneVehicleTransit
+	l sync.RWMutex
+}
+
+func GetInterLaneNextVehicle(vehicle_transit_array *[]InterLaneVehicleTransitItem, start_lane LaneID, end_lane LaneID, progress float64, m *Map) VehicleID {
 	nearest_progress := 1.1
 	nearest_vehicle_id := VehicleID(-1)
 
-	for _, transit := range *vehicle_transit_array {
+	for i, _ := range *vehicle_transit_array {
+		(*vehicle_transit_array)[i].l.RLock()
+		transit := (*vehicle_transit_array)[i].t
 		if transit != nil && transit.start_lane == start_lane && transit.end_lane == end_lane && transit.progress > progress && transit.progress < nearest_progress {
 			nearest_vehicle_id = transit.vehicle_id
 			nearest_progress = transit.progress
 		}
+		(*vehicle_transit_array)[i].l.RUnlock()
 	}
 	return nearest_vehicle_id
 }
@@ -119,11 +128,15 @@ func CalculateXYInterLaneVehicle(vehicle *Vehicle, mapsim *Map) *Position {
 	return &Position{x: new_x, y: new_y}
 }
 
-func isVehicleInterLaneConflicting(vehicle_transit_array *[]*InterLaneVehicleTransit, desired_lane LaneID, vehicle *Vehicle, mapsim *Map) bool {
-	for _, vta := range *vehicle_transit_array {
-		if vta != nil && VehicleInterLanesIntersect(vehicle.pos.lane_id, desired_lane, vta.start_lane, vta.end_lane, mapsim) {
+func isVehicleInterLaneConflicting(vehicle_transit_array *[]InterLaneVehicleTransitItem, desired_lane LaneID, vehicle *Vehicle, mapsim *Map) bool {
+	for i := 0; i < len(*vehicle_transit_array); i++ {
+		(*vehicle_transit_array)[i].l.RLock()
+		transit := (*vehicle_transit_array)[i].t
+		if transit != nil && VehicleInterLanesIntersect(vehicle.pos.lane_id, desired_lane, transit.start_lane, transit.end_lane, mapsim) {
+			(*vehicle_transit_array)[i].l.RUnlock()
 			return true
 		}
+		(*vehicle_transit_array)[i].l.RUnlock()
 	}
 
 	return false
@@ -169,7 +182,7 @@ type IntersectionAgent struct {
 	road_node_id           RoadNodeID
 	num_vehicles_processed int
 	vehicle_log_channel    chan LoggerVehicleEvent
-	vehicle_transit_array  []*InterLaneVehicleTransit
+	vehicle_transit_array  []InterLaneVehicleTransitItem
 	params                 *IntersectionAgentParams
 }
 
@@ -177,7 +190,12 @@ type IntersectionAgentParams struct {
 }
 
 func NewIntersectionAgent(node_id RoadNodeID, params *IntersectionAgentParams, vehicle_log_channel chan LoggerVehicleEvent, config_parameters *ConfigParameters) *IntersectionAgent {
-	return &IntersectionAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: make([]*InterLaneVehicleTransit, config_parameters.MAX_VEHICLES), params: params}
+	vehicle_transit_array := make([]InterLaneVehicleTransitItem, config_parameters.MAX_VEHICLES)
+	for i := range vehicle_transit_array {
+		vehicle_transit_array[i] = InterLaneVehicleTransitItem{t: nil, l: sync.RWMutex{}}
+	}
+
+	return &IntersectionAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: vehicle_transit_array, params: params}
 }
 
 func (a *IntersectionAgent) Descriptor() StaticAgentType {
@@ -200,10 +218,13 @@ func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
-		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
+		a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RLock()
+		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].t
 		if (next_vehicle_info != nil) && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+			a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 			return false
 		}
+		a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 	}
 
 	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
@@ -223,42 +244,59 @@ func (a *IntersectionAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
 func (a *IntersectionAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
 	end_lane_id := desired_pos.lane_id
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *IntersectionAgent) RemoveTransitingVehicle(v *Vehicle, m *Map) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *IntersectionAgent) isVehicleInTransitInterLane(v *Vehicle, m *Map) bool {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] != nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t != nil
 }
 
 func (a *IntersectionAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress > 1)
 }
 
 func (a *IntersectionAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
 }
 
 func (a *IntersectionAgent) GetInterLaneDistanceProgress(v *Vehicle, m *Map) (float64, float64) {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
 }
 
 func (a *IntersectionAgent) FindInterLaneNextVehicleAhead(v *Vehicle, m *Map) *Vehicle {
-	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].start_lane
-	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
-	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.start_lane
+	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
+	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
 
 	nearest_progress := 1.1
 	nearest_map_vehicle_id := -1
 
-	for map_vehicle_id, transit := range a.vehicle_transit_array {
+	for map_vehicle_id, t := range a.vehicle_transit_array {
+		a.vehicle_transit_array[map_vehicle_id].l.RLock()
+		transit := t.t
 		if transit != nil && transit.start_lane == start && transit.end_lane == end && transit.progress > progress && transit.progress < nearest_progress {
 			nearest_map_vehicle_id = map_vehicle_id
 			nearest_progress = transit.progress
 		}
+		a.vehicle_transit_array[map_vehicle_id].l.RUnlock()
 	}
 	if nearest_map_vehicle_id == -1 {
 		return nil
@@ -267,14 +305,16 @@ func (a *IntersectionAgent) FindInterLaneNextVehicleAhead(v *Vehicle, m *Map) *V
 }
 
 func (a *IntersectionAgent) UpdateInterLaneVehicleProgress(v *Vehicle, m *Map, new_progress float64) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 type SpawnerAgent struct {
 	road_node_id           RoadNodeID
 	num_vehicles_processed int
 	vehicle_log_channel    chan LoggerVehicleEvent
-	vehicle_transit_array  []*InterLaneVehicleTransit
+	vehicle_transit_array  []InterLaneVehicleTransitItem
 	params                 *SpawnerAgentParams
 }
 
@@ -284,7 +324,11 @@ type SpawnerAgentParams struct {
 }
 
 func NewSpawnerAgent(node_id RoadNodeID, params *SpawnerAgentParams, vehicle_log_channel chan LoggerVehicleEvent, config_parameters *ConfigParameters) *SpawnerAgent {
-	return &SpawnerAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: make([]*InterLaneVehicleTransit, config_parameters.MAX_VEHICLES), params: params}
+	vehicle_transit_array := make([]InterLaneVehicleTransitItem, config_parameters.MAX_VEHICLES)
+	for i := range vehicle_transit_array {
+		vehicle_transit_array[i] = InterLaneVehicleTransitItem{t: nil, l: sync.RWMutex{}}
+	}
+	return &SpawnerAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: vehicle_transit_array, params: params}
 }
 
 func (a *SpawnerAgent) Descriptor() StaticAgentType {
@@ -327,10 +371,13 @@ func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Veh
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
-		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
+		a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RLock()
+		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].t
 		if next_vehicle_info != nil && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+			a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 			return false
 		}
+		a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 	}
 
 	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
@@ -350,42 +397,59 @@ func (a *SpawnerAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
 func (a *SpawnerAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
 	end_lane_id := desired_pos.lane_id
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *SpawnerAgent) RemoveTransitingVehicle(v *Vehicle, m *Map) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *SpawnerAgent) isVehicleInTransitInterLane(v *Vehicle, m *Map) bool {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] != nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t != nil
 }
 
 func (a *SpawnerAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress > 1)
 }
 
 func (a *SpawnerAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
 }
 
 func (a *SpawnerAgent) GetInterLaneDistanceProgress(v *Vehicle, m *Map) (float64, float64) {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
 }
 
 func (a *SpawnerAgent) FindInterLaneNextVehicleAhead(v *Vehicle, m *Map) *Vehicle {
-	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].start_lane
-	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
-	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.start_lane
+	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
+	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
 
 	nearest_progress := 1.1
 	nearest_map_vehicle_id := -1
 
-	for map_vehicle_id, transit := range a.vehicle_transit_array {
+	for map_vehicle_id, t := range a.vehicle_transit_array {
+		a.vehicle_transit_array[map_vehicle_id].l.RLock()
+		transit := t.t
 		if transit != nil && transit.start_lane == start && transit.end_lane == end && transit.progress > progress && transit.progress < nearest_progress {
 			nearest_map_vehicle_id = map_vehicle_id
 			nearest_progress = transit.progress
 		}
+		a.vehicle_transit_array[map_vehicle_id].l.RUnlock()
 	}
 	if nearest_map_vehicle_id == -1 {
 		return nil
@@ -394,14 +458,16 @@ func (a *SpawnerAgent) FindInterLaneNextVehicleAhead(v *Vehicle, m *Map) *Vehicl
 }
 
 func (a *SpawnerAgent) UpdateInterLaneVehicleProgress(v *Vehicle, m *Map, new_progress float64) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 type SinkAgent struct {
 	road_node_id           RoadNodeID
 	num_vehicles_processed int
 	vehicle_log_channel    chan LoggerVehicleEvent
-	vehicle_transit_array  []*InterLaneVehicleTransit
+	vehicle_transit_array  []InterLaneVehicleTransitItem
 	params                 *SinkAgentParams
 }
 
@@ -409,7 +475,11 @@ type SinkAgentParams struct {
 }
 
 func NewSinkAgent(node_id RoadNodeID, params *SinkAgentParams, vehicle_log_channel chan LoggerVehicleEvent, config_parameters *ConfigParameters) *SinkAgent {
-	return &SinkAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: make([]*InterLaneVehicleTransit, config_parameters.MAX_VEHICLES), params: params}
+	vehicle_transit_array := make([]InterLaneVehicleTransitItem, config_parameters.MAX_VEHICLES)
+	for i := range vehicle_transit_array {
+		vehicle_transit_array[i] = InterLaneVehicleTransitItem{t: nil, l: sync.RWMutex{}}
+	}
+	return &SinkAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: vehicle_transit_array, params: params}
 }
 
 func (a *SinkAgent) Descriptor() StaticAgentType {
@@ -439,10 +509,13 @@ func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicl
 	//Check whether InterLane is free to proceed
 	next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 	if next_vehicle_id >= 0 {
-		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
+		a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RLock()
+		next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].t
 		if next_vehicle_info != nil && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+			a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 			return false
 		}
+		a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 	}
 
 	if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
@@ -462,42 +535,59 @@ func (a *SinkAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
 func (a *SinkAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
 	end_lane_id := desired_pos.lane_id
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *SinkAgent) RemoveTransitingVehicle(v *Vehicle, m *Map) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *SinkAgent) isVehicleInTransitInterLane(v *Vehicle, m *Map) bool {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] != nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t != nil
 }
 
 func (a *SinkAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress > 1)
 }
 
 func (a *SinkAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
 }
 
 func (a *SinkAgent) GetInterLaneDistanceProgress(v *Vehicle, m *Map) (float64, float64) {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
 }
 
 func (a *SinkAgent) FindInterLaneNextVehicleAhead(v *Vehicle, m *Map) *Vehicle {
-	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].start_lane
-	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
-	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.start_lane
+	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
+	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
 
 	nearest_progress := 1.1
 	nearest_map_vehicle_id := -1
 
-	for map_vehicle_id, transit := range a.vehicle_transit_array {
+	for map_vehicle_id, t := range a.vehicle_transit_array {
+		a.vehicle_transit_array[map_vehicle_id].l.RLock()
+		transit := t.t
 		if transit != nil && transit.start_lane == start && transit.end_lane == end && transit.progress > progress && transit.progress < nearest_progress {
 			nearest_map_vehicle_id = map_vehicle_id
 			nearest_progress = transit.progress
 		}
+		a.vehicle_transit_array[map_vehicle_id].l.RUnlock()
 	}
 	if nearest_map_vehicle_id == -1 {
 		return nil
@@ -506,14 +596,16 @@ func (a *SinkAgent) FindInterLaneNextVehicleAhead(v *Vehicle, m *Map) *Vehicle {
 }
 
 func (a *SinkAgent) UpdateInterLaneVehicleProgress(v *Vehicle, m *Map, new_progress float64) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 type TrafficLightIntersectionAgent struct {
 	road_node_id           RoadNodeID
 	num_vehicles_processed int
 	vehicle_log_channel    chan LoggerVehicleEvent
-	vehicle_transit_array  []*InterLaneVehicleTransit
+	vehicle_transit_array  []InterLaneVehicleTransitItem
 	params                 *TrafficLightIntersectionAgentParams
 }
 
@@ -524,7 +616,11 @@ type TrafficLightIntersectionAgentParams struct {
 }
 
 func NewTrafficLightIntersectionAgent(node_id RoadNodeID, params *TrafficLightIntersectionAgentParams, vehicle_log_channel chan LoggerVehicleEvent, config_parameters *ConfigParameters) *TrafficLightIntersectionAgent {
-	return &TrafficLightIntersectionAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: make([]*InterLaneVehicleTransit, config_parameters.MAX_VEHICLES), params: params}
+	vehicle_transit_array := make([]InterLaneVehicleTransitItem, config_parameters.MAX_VEHICLES)
+	for i := range vehicle_transit_array {
+		vehicle_transit_array[i] = InterLaneVehicleTransitItem{t: nil, l: sync.RWMutex{}}
+	}
+	return &TrafficLightIntersectionAgent{road_node_id: node_id, num_vehicles_processed: 0, vehicle_log_channel: vehicle_log_channel, vehicle_transit_array: vehicle_transit_array, params: params}
 }
 
 func (a *TrafficLightIntersectionAgent) Descriptor() StaticAgentType {
@@ -543,10 +639,13 @@ func (a *TrafficLightIntersectionAgent) CanVehicleProceed(mapsim *Map, time SimT
 		//Check whether InterLane is free to proceed
 		next_vehicle_id := GetInterLaneNextVehicle(&a.vehicle_transit_array, vehicle.pos.lane_id, desired_lane, 0, mapsim)
 		if next_vehicle_id >= 0 {
-			next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)]
+			a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RLock()
+			next_vehicle_info := a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].t
 			if next_vehicle_info != nil && next_vehicle_info.progress*next_vehicle_info.distance < vehicle.prop.minimum_gap_size {
+				a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 				return false
 			}
+			a.vehicle_transit_array[mapsim.GetMapArrayVehicleIDIndex(next_vehicle_id)].l.RUnlock()
 		}
 
 		if isVehicleInterLaneConflicting(&a.vehicle_transit_array, desired_lane, vehicle, mapsim) {
@@ -581,42 +680,59 @@ func (a *TrafficLightIntersectionAgent) SendLogMessage(log_msg LoggerVehicleEven
 func (a *TrafficLightIntersectionAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
 	end_lane_id := desired_pos.lane_id
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = &InterLaneVehicleTransit{vehicle_id: v.id, start_lane: start_lane_id, end_lane: end_lane_id, distance: CalculateDistance(m.lanes[start_lane_id].end_pos, m.lanes[end_lane_id].start_pos), progress: 0}
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *TrafficLightIntersectionAgent) RemoveTransitingVehicle(v *Vehicle, m *Map) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t = nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
 
 func (a *TrafficLightIntersectionAgent) isVehicleInTransitInterLane(v *Vehicle, m *Map) bool {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)] != nil
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t != nil
 }
 
 func (a *TrafficLightIntersectionAgent) HasReachedEndInterLane(v *Vehicle, m *Map) bool {
-	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress > 1)
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return AlmostEqual(a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress, 1) || (a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress > 1)
 }
 
 func (a *TrafficLightIntersectionAgent) GetInterLaneNextLane(v *Vehicle, m *Map) LaneID {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
 }
 
 func (a *TrafficLightIntersectionAgent) GetInterLaneDistanceProgress(v *Vehicle, m *Map) (float64, float64) {
-	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	defer a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
+	return a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.distance, a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
 }
 
 func (a *TrafficLightIntersectionAgent) FindInterLaneNextVehicleAhead(v *Vehicle, m *Map) *Vehicle {
-	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].start_lane
-	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].end_lane
-	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RLock()
+	start := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.start_lane
+	end := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.end_lane
+	progress := a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.RUnlock()
 
 	nearest_progress := 1.1
 	nearest_map_vehicle_id := -1
 
-	for map_vehicle_id, transit := range a.vehicle_transit_array {
+	for map_vehicle_id, t := range a.vehicle_transit_array {
+		a.vehicle_transit_array[map_vehicle_id].l.RLock()
+		transit := t.t
 		if transit != nil && transit.start_lane == start && transit.end_lane == end && transit.progress > progress && transit.progress < nearest_progress {
 			nearest_map_vehicle_id = map_vehicle_id
 			nearest_progress = transit.progress
 		}
+		a.vehicle_transit_array[map_vehicle_id].l.RUnlock()
 	}
 	if nearest_map_vehicle_id == -1 {
 		return nil
@@ -625,5 +741,7 @@ func (a *TrafficLightIntersectionAgent) FindInterLaneNextVehicleAhead(v *Vehicle
 }
 
 func (a *TrafficLightIntersectionAgent) UpdateInterLaneVehicleProgress(v *Vehicle, m *Map, new_progress float64) {
-	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Lock()
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].t.progress = new_progress
+	a.vehicle_transit_array[m.GetMapArrayVehicleIDIndex(v.id)].l.Unlock()
 }
