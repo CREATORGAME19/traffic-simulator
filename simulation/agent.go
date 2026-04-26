@@ -218,7 +218,7 @@ func (a *IntersectionAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle
 
 func (a *IntersectionAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
 	a.vehicle_log_channel <- log_msg
-} 
+}
 
 func (a *IntersectionAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
@@ -298,20 +298,17 @@ func (a *SpawnerAgent) Poke(mapsim *Map, time SimTime, agent_channel chan Static
 }
 
 func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
-	if mapsim.vehicles.next_empty >= mapsim.config_parameters.MAX_VEHICLES {
-		//println("Vehicle limit reached!") //WARNING
-		return
-	}
-
 	if time >= a.params.nextSpawnTime {
 		if mapsim.vehicles.next_empty >= mapsim.config_parameters.MAX_VEHICLES {
 			//println("Vehicle limit reached!") //WARNING
 			return
 		}
+		mapsim.vehicles.write_lock.Lock()
 		next_vehicle_id := mapsim.GetRealVehicleID(mapsim.vehicles.next_empty)
 		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(next_vehicle_id), time, a.road_node_id, mapsim.FindADestinationNode())
 		mapsim.vehicles.vehicle_id_index_array[mapsim.vehicles.next_empty]++
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
+		mapsim.vehicles.write_lock.Unlock()
 		for a.params.nextSpawnTime <= time {
 			a.params.nextSpawnTime = time + SimTime(1/a.params.spawn_rate) + SimTime(spawn_stdDev*rand.NormFloat64())
 		}
@@ -348,7 +345,7 @@ func (a *SpawnerAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Veh
 
 func (a *SpawnerAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
 	a.vehicle_log_channel <- log_msg
-} 
+}
 
 func (a *SpawnerAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
@@ -428,8 +425,10 @@ func (a *SinkAgent) Poke(mapsim *Map, time SimTime, agent_channel chan StaticAge
 func (a *SinkAgent) DestroyVehicle(mapsim *Map, time SimTime, vehicle *Vehicle) {
 	current_lane := vehicle.GetCurrentLane(mapsim)
 	current_lane.RemoveVehicleFromQueue(vehicle, mapsim)
+	mapsim.vehicles.write_lock.Lock()
 	mapsim.vehicles.vehicle_array[mapsim.GetMapArrayVehicleIDIndex(vehicle.id)] = nil
 	mapsim.vehicles.next_empty = min(mapsim.GetMapArrayVehicleIDIndex(vehicle.id), mapsim.vehicles.next_empty)
+	mapsim.vehicles.write_lock.Unlock()
 	a.num_vehicles_processed++
 	a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: vehicle.id, NodeID: a.road_node_id, Time: time, LaneID: current_lane.id, EventType: LoggerVehicleEventDestroy}
 }
@@ -458,7 +457,7 @@ func (a *SinkAgent) CanVehicleProceed(mapsim *Map, time SimTime, vehicle *Vehicl
 
 func (a *SinkAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
 	a.vehicle_log_channel <- log_msg
-} 
+}
 
 func (a *SinkAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id
@@ -577,7 +576,7 @@ func (a *TrafficLightIntersectionAgent) Poke(mapsim *Map, time SimTime, agent_ch
 
 func (a *TrafficLightIntersectionAgent) SendLogMessage(log_msg LoggerVehicleEvent) {
 	a.vehicle_log_channel <- log_msg
-} 
+}
 
 func (a *TrafficLightIntersectionAgent) AddTransitingVehicle(v *Vehicle, m *Map, desired_pos VehiclePosition) {
 	start_lane_id := v.pos.lane_id

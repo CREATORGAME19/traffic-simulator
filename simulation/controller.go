@@ -88,7 +88,7 @@ func RunController(map_config *MapConfig, config_parameters *ConfigParameters) {
 
 		//Activate StaticAgents
 		for _, a := range rand.Perm(len(mapsim.nodes)) { //Update spawners/intersections each time
-			mapsim.nodes[a].agent.Poke(mapsim, sim_time, agent_channel)
+			go mapsim.nodes[a].agent.Poke(mapsim, sim_time, agent_channel)
 		}
 		//Fetch from agents
 		for m := 0; m < len(mapsim.nodes); m++ {

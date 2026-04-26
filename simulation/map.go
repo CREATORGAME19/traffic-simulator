@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"sync"
 )
 
 type Position struct {
@@ -58,6 +59,7 @@ type VehicleDB struct {
 	vehicle_array          []*Vehicle
 	next_empty             int
 	vehicle_id_index_array []int
+	write_lock             sync.Mutex
 }
 
 func FindNextEmptyVehicles(mapsim *Map) int {
