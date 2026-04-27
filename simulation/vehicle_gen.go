@@ -7,7 +7,7 @@ import (
 func CreateVehicle(id VehicleID, curr_time SimTime, origin RoadNodeID, destination RoadNodeID) *Vehicle {
 	path := []RoadNodeID{origin}
 	var v *Vehicle = nil
-	if rand.Float64() <= 0.5 {
+	if rand.Float64() <= 0 {
 		v = NewVehicle(
 			id,
 			VehicleProp{

@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 )
@@ -342,6 +343,9 @@ func (a *SpawnerAgent) Poke(mapsim *Map, time SimTime, agent_channel chan Static
 }
 
 func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
+	if a.params.spawn_rate == 0 {
+		return
+	}
 	if time >= a.params.nextSpawnTime {
 		if mapsim.vehicles.next_empty >= mapsim.config_parameters.MAX_VEHICLES {
 			//println("Vehicle limit reached!") //WARNING
@@ -354,7 +358,7 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		mapsim.vehicles.next_empty = FindNextEmptyVehicles(mapsim)
 		mapsim.vehicles.write_lock.Unlock()
 		for a.params.nextSpawnTime <= time {
-			a.params.nextSpawnTime = time + SimTime(1/a.params.spawn_rate) + SimTime(spawn_stdDev*rand.NormFloat64())
+			a.params.nextSpawnTime = time - SimTime(math.Log(1.0-rand.Float64())*1/a.params.spawn_rate)
 		}
 		a.num_vehicles_processed++
 		a.vehicle_log_channel <- LoggerVehicleEvent{VehicleID: next_vehicle_id, NodeID: a.road_node_id, Time: time, LaneID: -1, EventType: LoggerVehicleEventSpawn} //Technically vehicle is not yet on a lane upon spawn

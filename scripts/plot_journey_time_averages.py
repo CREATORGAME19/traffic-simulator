@@ -101,7 +101,7 @@ def plot_journey_times(log_file_paths, map_file_path):
                                 journey_time = current_time - spawn_time
                                 all_journey_times.append(journey_time)
                                 
-                                route_key = (src_node, dest_node)
+                                route_key = (src_node,dest_node) #(src_node, dest_node)
                                 
                                 if route_key not in overall_route_times:
                                     overall_route_times[route_key] = []
@@ -188,6 +188,7 @@ if __name__ == "__main__":
     log_file_names = [
         #'../logs/6hourRun4.jsonl'
         '../simulation_log.jsonl'
+        #'../logs/0%V2I6hour.jsonl'
     ]
     map_file_name = '../example_maps/world7.json'
     

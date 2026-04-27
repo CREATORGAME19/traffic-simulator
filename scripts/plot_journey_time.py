@@ -51,8 +51,8 @@ def plot_journey_times(log_file_paths):
                             dest_node = data.get("destination_node_id", destination_nodes.get(vid))
                             
                             # Your existing route filter
-                            #if (dest_node != 45 or src_node != 9):
-                            #    continue
+                            if (dest_node != 45 or src_node != 9):
+                                continue
                                 
                             if spawn_time is not None and current_time is not None and src_node is not None:
                                 journey_time = current_time - spawn_time
@@ -117,22 +117,23 @@ def plot_journey_times(log_file_paths):
 if __name__ == "__main__":
     # Provide the list of files to compare here
     log_file_names = [
-        '../logs/6hourRun3.jsonl',
+        #'../logs/6hourRun3.jsonl',
         #'../logs/6hourRun5.jsonl',
         #'../logs/1lookahead100%.jsonl',
-        '../logs/1lookahead100%3.jsonl',
-        '../logs/1lookahead50%3.jsonl',
-        '../logs/1lookahead25%2.jsonl',
-        '../logs/2lookahead100%3.jsonl',
-        '../logs/2lookahead50%3.jsonl',
-        '../logs/2lookahead25%2.jsonl',
-        '../logs/4lookahead100%4.jsonl',
-        '../logs/4lookahead50%3.jsonl',
+        #'../logs/1lookahead100%3.jsonl',
+        #'../logs/1lookahead50%3.jsonl',
+        #'../logs/1lookahead25%2.jsonl',
+        #'../logs/2lookahead100%3.jsonl',
+        #'../logs/2lookahead50%3.jsonl',
+        #'../logs/2lookahead25%2.jsonl',
+        #'../logs/4lookahead100%4.jsonl',
+        #'../logs/4lookahead50%3.jsonl',
         #'../logs/2lookahead50%.jsonl',
         #'../logs/1lookahead50%.jsonl',
-        '../logs/4lookahead25%2.jsonl',
+        #'../logs/4lookahead25%2.jsonl',
         #'../logs/2lookahead25%.jsonl',
         #'../logs/1lookahead25%.jsonl',
-        #'../simulation_log.jsonl'
+        '../simulation_log.jsonl',
+        '../logs/0%V2I6hour.jsonl'
     ] 
     plot_journey_times(log_file_names)
