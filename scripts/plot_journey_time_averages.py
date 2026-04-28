@@ -1,9 +1,10 @@
 import json
 import math
 import matplotlib.pyplot as plt
-import statistics # NEW: Imported to calculate standard deviation
+import matplotlib.ticker as ticker
+import statistics 
+import numpy as np 
 
-# Dictionary mapping node IDs to their real-world names
 NODE_NAMES = {
     39: "Madingley Road",
     37: "Huntington Road",
@@ -16,8 +17,24 @@ NODE_NAMES = {
     55: "Central Cambridge Market",
     54: "Grand Arcade Car Park",
     56: "Grafton Car Park",
-    9: "Barton Road"
+    9: "Barton Road",
+    1: "Node 1",
+    34: "Node 34",
+    7: "Node 7"
 }
+
+ALLOWED_ROUTES = {
+    (9, None),    # all routes from Barton Road (node 9)
+    (1, 45),      # node 1 -> Newmarket Road
+    (34, 41),     # node 34 -> Trumpington Road
+    (7, 41),      # node 7 -> Trumpington Road
+    (7, 43),      # node 7 -> Milton Road
+}
+
+def is_allowed_route(src, dest):
+    if (src, None) in ALLOWED_ROUTES:
+        return True
+    return (src, dest) in ALLOWED_ROUTES
 
 def get_excluded_pairs(map_file_path, distance_threshold=1.0):
     with open(map_file_path, 'r') as f:
@@ -45,9 +62,10 @@ def get_excluded_pairs(map_file_path, distance_threshold=1.0):
 def plot_journey_times(log_file_paths, map_file_path):
     excluded_pairs = get_excluded_pairs(map_file_path)
 
-    interval_size = 100
-    binned_route_times = {} 
+    interval_size = 600
+    simulation_start_hour = 6  # 6:00 AM
     
+    binned_route_times = {} 
     overall_route_times = {} 
     
     all_journey_times = []
@@ -89,8 +107,8 @@ def plot_journey_times(log_file_paths, map_file_path):
                             spawn_time = data.get("spawn_time", spawn_times.get(vid))
                             src_node = data.get("source_node_id", source_nodes.get(vid))
                             dest_node = data.get("destination_node_id", destination_nodes.get(vid))
-                            
-                            if src_node != 9: # Barton Road filter
+
+                            if not is_allowed_route(src_node, dest_node):
                                 continue
 
                             if (src_node, dest_node) in excluded_pairs:
@@ -101,8 +119,7 @@ def plot_journey_times(log_file_paths, map_file_path):
                                 journey_time = current_time - spawn_time
                                 all_journey_times.append(journey_time)
                                 
-                                route_key = (src_node,dest_node) #(src_node, dest_node)
-                                
+                                route_key = (src_node, dest_node) 
                                 if route_key not in overall_route_times:
                                     overall_route_times[route_key] = []
                                 overall_route_times[route_key].append(journey_time)
@@ -125,25 +142,18 @@ def plot_journey_times(log_file_paths, map_file_path):
             continue
                 
     if not all_journey_times:
-        print(f"No valid VEHICLE_DESTROY events found starting from node 9.")
+        print(f"No valid VEHICLE_DESTROY events found for the specified routes.")
         return
 
-    # NEW: Calculate and print standard deviation alongside the average
-    print("\n--- Overall Average Journey Times per Route ---")
+    print("\n--- Overall Average Journey Times per Route (Console Only) ---")
     for route_key, times in sorted(overall_route_times.items()):
         avg_time = sum(times) / len(times)
-        
-        # Standard deviation requires at least 2 data points
-        if len(times) > 1:
-            stdev_time = statistics.stdev(times)
-        else:
-            stdev_time = 0.0
+        stdev_time = statistics.stdev(times) if len(times) > 1 else 0.0
             
         src_name = NODE_NAMES.get(route_key[0], f"Node {route_key[0]}")
         dest_name = NODE_NAMES.get(route_key[1], f"Node {route_key[1]}")
         
-        # Formatted string including standard deviation (±)
-        print(f"{src_name} \u2192 {dest_name}: {avg_time:.2f}s \u00B1 {stdev_time:.2f}s (Total vehicles: {len(times)})")
+        print(f"{src_name} → {dest_name}: {avg_time:.2f}s ± {stdev_time:.2f}s (Total vehicles: {len(times)})")
     print("-----------------------------------------------\n")
 
     average_journey = sum(all_journey_times) / len(all_journey_times)
@@ -151,44 +161,91 @@ def plot_journey_times(log_file_paths, map_file_path):
     print(f"Total valid vehicles arriving: {len(all_journey_times)}")
     print(f"Overall average valid journey time: {average_journey:.2f} seconds")
 
+    # --- Plotting ---
     plt.figure(figsize=(12, 7))
     
-    for route, intervals in binned_route_times.items():
-        plot_intervals = sorted(intervals.keys())
-        plot_averages = [
+    all_intervals = set()
+    for intervals in binned_route_times.values():
+        all_intervals.update(intervals.keys())
+        
+    if not all_intervals:
+        return
+        
+    global_min_interval = min(all_intervals)
+    global_max_interval = max(all_intervals)
+    
+    common_intervals = np.arange(global_min_interval, global_max_interval + interval_size, interval_size)
+    
+    all_route_interpolated_averages = []
+    coverage_masks = []
+
+    for route_key, intervals in binned_route_times.items():
+        actual_intervals = sorted(intervals.keys())
+        if not actual_intervals:
+            continue
+            
+        actual_averages = [
             sum(intervals[interval]) / len(intervals[interval])
-            for interval in plot_intervals
+            for interval in actual_intervals
         ]
         
-        src_name = NODE_NAMES.get(route[0], f"Node {route[0]}")
-        dest_name = NODE_NAMES.get(route[1], f"Node {route[1]}")
-        
-        plt.plot(
-            plot_intervals, 
-            plot_averages,    
-            marker='o',         
+        if len(actual_intervals) == 1:
+            route_interpolated = np.full_like(common_intervals, np.nan, dtype=float)
+            idx = np.searchsorted(common_intervals, actual_intervals[0])
+            if idx < len(route_interpolated):
+                route_interpolated[idx] = actual_averages[0]
+            coverage_mask = ~np.isnan(route_interpolated)
+        else:
+            route_interpolated = np.interp(common_intervals, actual_intervals, actual_averages)
+            coverage_mask = (common_intervals >= actual_intervals[0]) & \
+                            (common_intervals <= actual_intervals[-1])
+
+        all_route_interpolated_averages.append(route_interpolated)
+        coverage_masks.append(coverage_mask)
+
+    if all_route_interpolated_averages:
+        stacked = np.array(all_route_interpolated_averages)
+        coverage = np.array(coverage_masks)
+
+        masked = np.where(coverage, stacked, np.nan)
+        final_aggregate_averages = np.nanmean(masked, axis=0) / 60
+        final_aggregate_stdev = np.nanstd(masked, axis=0) / 60
+
+        def seconds_to_clock(s):
+            total_minutes = int(simulation_start_hour * 60 + s / 60)
+            h = total_minutes // 60
+            m = total_minutes % 60
+            return f"{h:02d}:{m:02d}"
+
+        x_labels = [seconds_to_clock(s) for s in common_intervals]
+
+        plt.errorbar(
+            range(len(common_intervals)),
+            final_aggregate_averages,
+            yerr=final_aggregate_stdev,
+            marker='o',
             linestyle='-',
             linewidth=2,
-            markersize=5,
-            label=f"{src_name} \u2192 {dest_name}" 
+            markersize=6,
+            capsize=4,
         )
-    
-    plt.xlabel(f'Simulation Time (seconds) - {interval_size}s Intervals', fontsize=16)
-    plt.ylabel('Average Journey Time (seconds)', fontsize=16)
-    
-    plt.title('Average Journey Time from Barton Road Over Time', fontsize=16)
+
+        plt.xticks(range(len(common_intervals)), x_labels, rotation=45, ha='right')
+
+    plt.xlabel('Simulated Time of Day', fontsize=16)
+    plt.ylabel('Aggregate Journey Time (minutes)', fontsize=16)
     plt.grid(True, linestyle='--', alpha=0.7)
-    
-    plt.legend(title="Destinations", bbox_to_anchor=(1.05, 1), loc='upper left')
-    
+    plt.legend(loc='upper left')
     plt.tight_layout()
     plt.show()
 
 if __name__ == "__main__":
     log_file_names = [
-        #'../logs/6hourRun4.jsonl'
-        '../simulation_log.jsonl'
-        #'../logs/0%V2I6hour.jsonl'
+        '../usb_logs/RUN1trafficlight.jsonl',
+        '../usb_logs/RUN2trafficlight.jsonl',
+        '../usb_logs/RUN3trafficlight.jsonl',
+        '../usb_logs/RUN4trafficlight.jsonl',
+        '../usb_logs/RUN5trafficlight.jsonl'
     ]
     map_file_name = '../example_maps/world7.json'
     
