@@ -347,11 +347,12 @@ func (a *SpawnerAgent) SpawnVehicles(mapsim *Map, time SimTime) {
 		return
 	}
 	if time >= a.params.nextSpawnTime {
+		mapsim.vehicles.write_lock.Lock()
 		if mapsim.vehicles.next_empty >= mapsim.config_parameters.MAX_VEHICLES {
 			//println("Vehicle limit reached!") //WARNING
+			mapsim.vehicles.write_lock.Unlock()
 			return
 		}
-		mapsim.vehicles.write_lock.Lock()
 		next_vehicle_id := mapsim.GetRealVehicleID(mapsim.vehicles.next_empty)
 		mapsim.vehicles.vehicle_array[mapsim.vehicles.next_empty] = CreateVehicle(VehicleID(next_vehicle_id), time, a.road_node_id, mapsim.FindADestinationNode())
 		mapsim.vehicles.vehicle_id_index_array[mapsim.vehicles.next_empty]++
