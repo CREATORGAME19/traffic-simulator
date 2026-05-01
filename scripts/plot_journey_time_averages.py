@@ -24,11 +24,7 @@ NODE_NAMES = {
 }
 
 ALLOWED_ROUTES = {
-    (9, None),    # all routes from Barton Road (node 9)
-    (1, 45),      # node 1 -> Newmarket Road
-    (34, 41),     # node 34 -> Trumpington Road
-    (7, 41),      # node 7 -> Trumpington Road
-    (7, 43),      # node 7 -> Milton Road
+    (9, None),   # all routes from Barton Road
 }
 
 def is_allowed_route(src, dest):
@@ -72,7 +68,6 @@ def plot_journey_times(log_file_paths, map_file_path):
     filtered_count = 0
 
     for log_file_path in log_file_paths:
-        
         spawn_times = {}
         source_nodes = {}
         destination_nodes = {}
@@ -145,25 +140,29 @@ def plot_journey_times(log_file_paths, map_file_path):
         print(f"No valid VEHICLE_DESTROY events found for the specified routes.")
         return
 
-    print("\n--- Overall Average Journey Times per Route (Console Only) ---")
+    print("\n--- Overall Average Journey Times per Route ---")
     for route_key, times in sorted(overall_route_times.items()):
         avg_time = sum(times) / len(times)
         stdev_time = statistics.stdev(times) if len(times) > 1 else 0.0
-            
         src_name = NODE_NAMES.get(route_key[0], f"Node {route_key[0]}")
         dest_name = NODE_NAMES.get(route_key[1], f"Node {route_key[1]}")
-        
-        print(f"{src_name} → {dest_name}: {avg_time:.2f}s ± {stdev_time:.2f}s (Total vehicles: {len(times)})")
+        print(f"{src_name} → {dest_name}: {avg_time/60:.2f} min ± {stdev_time/60:.2f} min (Total vehicles: {len(times)})")
     print("-----------------------------------------------\n")
 
     average_journey = sum(all_journey_times) / len(all_journey_times)
     print(f"Filtered out {filtered_count} immediate arrivals across {len(log_file_paths)} runs.")
     print(f"Total valid vehicles arriving: {len(all_journey_times)}")
-    print(f"Overall average valid journey time: {average_journey:.2f} seconds")
+    print(f"Overall average valid journey time: {average_journey/60:.2f} minutes")
+
+    def seconds_to_clock(s):
+        total_minutes = int(simulation_start_hour * 60 + s / 60)
+        h = total_minutes // 60
+        m = total_minutes % 60
+        return f"{h:02d}:{m:02d}"
 
     # --- Plotting ---
     plt.figure(figsize=(12, 7))
-    
+
     all_intervals = set()
     for intervals in binned_route_times.values():
         all_intervals.update(intervals.keys())
@@ -173,22 +172,22 @@ def plot_journey_times(log_file_paths, map_file_path):
         
     global_min_interval = min(all_intervals)
     global_max_interval = max(all_intervals)
-    
     common_intervals = np.arange(global_min_interval, global_max_interval + interval_size, interval_size)
-    
+    x_labels = [seconds_to_clock(s) for s in common_intervals]
+
     all_route_interpolated_averages = []
     coverage_masks = []
 
-    for route_key, intervals in binned_route_times.items():
+    for route_key, intervals in sorted(binned_route_times.items()):
         actual_intervals = sorted(intervals.keys())
         if not actual_intervals:
             continue
-            
+
         actual_averages = [
             sum(intervals[interval]) / len(intervals[interval])
             for interval in actual_intervals
         ]
-        
+
         if len(actual_intervals) == 1:
             route_interpolated = np.full_like(common_intervals, np.nan, dtype=float)
             idx = np.searchsorted(common_intervals, actual_intervals[0])
@@ -206,46 +205,54 @@ def plot_journey_times(log_file_paths, map_file_path):
     if all_route_interpolated_averages:
         stacked = np.array(all_route_interpolated_averages)
         coverage = np.array(coverage_masks)
-
         masked = np.where(coverage, stacked, np.nan)
-        final_aggregate_averages = np.nanmean(masked, axis=0) / 60
-        final_aggregate_stdev = np.nanstd(masked, axis=0) / 60
 
-        def seconds_to_clock(s):
-            total_minutes = int(simulation_start_hour * 60 + s / 60)
-            h = total_minutes // 60
-            m = total_minutes % 60
-            return f"{h:02d}:{m:02d}"
+        # Rank routes by their overall mean journey time
+        route_overall_means = np.nanmean(masked, axis=1)
+        n_routes = len(route_overall_means)
+        sorted_indices = np.argsort(route_overall_means)
 
-        x_labels = [seconds_to_clock(s) for s in common_intervals]
+        q1 = max(1, n_routes // 4)
+        q3 = max(1, n_routes // 4)
 
-        plt.errorbar(
-            range(len(common_intervals)),
-            final_aggregate_averages,
-            yerr=final_aggregate_stdev,
-            marker='o',
-            linestyle='-',
-            linewidth=2,
-            markersize=6,
-            capsize=4,
-        )
+        short_idx  = sorted_indices[:q1]
+        long_idx   = sorted_indices[n_routes - q3:]
+        middle_idx = sorted_indices[q1:n_routes - q3]
 
-        plt.xticks(range(len(common_intervals)), x_labels, rotation=45, ha='right')
+        segments = [
+            (short_idx,  'Shortest 25%', 'green'),
+            (middle_idx, 'Middle 50%',   'blue'),
+            (long_idx,   'Longest 25%',  'red'),
+        ]
 
+        for indices, label, color in segments:
+            group = masked[indices]
+            avg = np.nanmean(group, axis=0) / 60
+            std = np.nanstd(group,  axis=0) / 60
+            valid = ~np.isnan(avg)
+            plt.errorbar(
+                np.where(valid)[0], avg[valid], yerr=std[valid],
+                marker='o', linestyle='-', linewidth=2, markersize=4, capsize=4,
+                color=color, label=label
+            )
+
+    plt.xticks(range(len(common_intervals)), x_labels, rotation=45, ha='right')
     plt.xlabel('Simulated Time of Day', fontsize=16)
-    plt.ylabel('Aggregate Journey Time (minutes)', fontsize=16)
+    plt.ylabel('Average Journey Time (minutes)', fontsize=16)
     plt.grid(True, linestyle='--', alpha=0.7)
-    plt.legend(loc='upper left')
+    plt.legend(fontsize=12)
     plt.tight_layout()
     plt.show()
 
 if __name__ == "__main__":
     log_file_names = [
-        '../usb_logs/RUN1trafficlight.jsonl',
-        '../usb_logs/RUN2trafficlight.jsonl',
-        '../usb_logs/RUN3trafficlight.jsonl',
-        '../usb_logs/RUN4trafficlight.jsonl',
-        '../usb_logs/RUN5trafficlight.jsonl'
+        #'../logs_new/RUN1.jsonl',
+        #'../logs_new/RUN2.jsonl',
+        '../usb_logs/RUN1.jsonl',
+        '../usb_logs/RUN2.jsonl',
+        '../usb_logs/RUN3.jsonl',
+        '../usb_logs/RUN4.jsonl',
+        '../usb_logs/RUN5.jsonl'
     ]
     map_file_name = '../example_maps/world7.json'
     

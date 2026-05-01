@@ -3,13 +3,12 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
-import matplotlib.lines as mlines # NEW: Imported to create a custom legend
+import matplotlib.lines as mlines
 
 def plot_map_heatmap(log_file_paths, map_file_path):
     with open(map_file_path, 'r') as f:
         map_data = json.load(f)
 
-    # Map lane IDs to their spatial coordinates
     lanes = {}
     for lane in map_data.get('lanes', []):
         lanes[lane['ID']] = {
@@ -40,7 +39,6 @@ def plot_map_heatmap(log_file_paths, map_file_path):
                         if vid is None or current_time is None:
                             continue
 
-                        # Catch VEHICLE ENTER LANE and VEHICLE SPAWN
                         if event_type in ["VEHICLE ENTER LANE", "VEHICLE SPAWN", "VEHICLE_SPAWN"] and lane_id is not None:
                             active_vehicles[vid] = {"lane_id": lane_id, "time": current_time}
 
@@ -55,7 +53,7 @@ def plot_map_heatmap(log_file_paths, map_file_path):
                                     lane_times[past_lane_id].append(traversal_time)
 
                             if event_type == "VEHICLE EXIT LANE" and lane_id is not None:
-                                 active_vehicles[vid] = {"lane_id": lane_id, "time": current_time}
+                                active_vehicles[vid] = {"lane_id": lane_id, "time": current_time}
 
                     except json.JSONDecodeError:
                         continue
@@ -65,17 +63,16 @@ def plot_map_heatmap(log_file_paths, map_file_path):
     avg_lane_times = {}
     for lid, times in lane_times.items():
         if times:
-            avg_lane_times[lid] = sum(times) / len(times)
+            avg_lane_times[lid] = (sum(times) / len(times)) / 60  # convert to minutes
         else:
             avg_lane_times[lid] = 0
 
-    # NEW: Print out the average transit times for specific lanes
     target_lanes = [38, 41, 59, 62]
     print("\n--- Average Transit Times for Specific Lanes ---")
     for lane_id in target_lanes:
         avg_time = avg_lane_times.get(lane_id, 0)
         vehicle_count = len(lane_times.get(lane_id, []))
-        print(f"Lane {lane_id}: {avg_time:.2f} seconds (Total vehicles: {vehicle_count})")
+        print(f"Lane {lane_id}: {avg_time:.2f} minutes (Total vehicles: {vehicle_count})")
     print("------------------------------------------------\n")
 
     valid_times = [t for t in avg_lane_times.values() if t > 0]
@@ -86,12 +83,12 @@ def plot_map_heatmap(log_file_paths, map_file_path):
     min_time = min(valid_times)
     max_time = max(valid_times)
 
-    cmap = cm.get_cmap('RdYlGn_r') 
+    cmap = cm.get_cmap('RdYlGn_r')
     norm = mcolors.Normalize(vmin=min_time, vmax=max_time)
 
     fig, ax = plt.subplots(figsize=(14, 12))
 
-    offset_distance = 10.0 
+    offset_distance = 10.0
 
     for lid, lane_data in lanes.items():
         avg_time = avg_lane_times.get(lid, 0)
@@ -133,55 +130,48 @@ def plot_map_heatmap(log_file_paths, map_file_path):
     for node in map_data.get('road_nodes', []):
         agent_type = node.get('Agent', 0)
         
-        if agent_type in [1, 2]:    
+        if agent_type in [1, 2]:
             node_color = 'blue'
-            node_size = 50
-            node_zorder = 4
-        elif agent_type == 3:       
-            node_color = 'purple'
-            node_size = 50
-            node_zorder = 4
-        else:                       
+        elif agent_type == 3:
+            node_color = 'cyan'
+        else:
             node_color = 'black'
-            node_size = 50
-            node_zorder = 4
 
         ax.scatter(
-            node['Position']['x'], 
-            node['Position']['y'], 
-            color=node_color, 
-            s=node_size, 
-            zorder=node_zorder
+            node['Position']['x'],
+            node['Position']['y'],
+            color=node_color,
+            s=75,
+            zorder=4
         )
 
-    # Add a colorbar legend for the lanes
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, fraction=0.03, pad=0.04)
-    cbar.set_label('Average Traversal Time (seconds)', fontsize=12)
+    cbar.set_label('Average Road Traversal Time (minutes)', fontsize=16)
+    cbar.ax.tick_params(labelsize=14)
 
     legend_elements = [
-        mlines.Line2D([], [], color='blue', marker='o', linestyle='None', markersize=8, label='Spawn/Sink Agent'),
-        mlines.Line2D([], [], color='purple', marker='o', linestyle='None', markersize=8, label='Traffic Light Agent'),
-        mlines.Line2D([], [], color='black', marker='o', linestyle='None', markersize=8, label='Intersection Agent')
+        mlines.Line2D([], [], color='blue', marker='o', linestyle='None', markersize=10, label='Spawn/Sink Agent'),
+        mlines.Line2D([], [], color='cyan', marker='o', linestyle='None', markersize=10, label='Traffic Light Agent'),
+        mlines.Line2D([], [], color='black', marker='o', linestyle='None', markersize=10, label='Intersection Agent')
     ]
-    ax.legend(handles=legend_elements, loc='upper right', title="Agent Types")
+    ax.legend(handles=legend_elements, loc='upper right', title="Agent Types",
+              prop={'size': 14}, title_fontsize=14)
 
     ax.set_aspect('equal', 'box')
-    ax.set_xlabel('X Coordinate', fontsize=12)
-    ax.set_ylabel('Y Coordinate', fontsize=12)
-    ax.grid(True, linestyle='--', alpha=0.3)
+    ax.axis('off')  # Remove axes
 
     plt.tight_layout()
     plt.show()
 
 if __name__ == "__main__":
     log_file_names = [
-        #'../logs/RUN3.jsonl',
-        #'../logs/6hourRun2.jsonl',
-        #'../logs/6hourRun3.jsonl'
-        #'../logs/6hourRun6.jsonl'
-        '../simulation_log.jsonl'
+        '../usb_logs/RUN1.jsonl',
+        '../usb_logs/RUN2.jsonl',
+        '../usb_logs/RUN3.jsonl',
+        '../usb_logs/RUN4.jsonl',
+        '../usb_logs/RUN5.jsonl'
     ]
     map_file_name = '../example_maps/world7.json'
     
