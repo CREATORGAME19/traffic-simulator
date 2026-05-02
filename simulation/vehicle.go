@@ -205,7 +205,11 @@ func (a *Vehicle) CalculateNewPos(m *Map, old_time SimTime, new_time SimTime, po
 	curr_lane := a.GetCurrentLane(m)
 	if vehicle_in_inter_lane {
 		desired_lane_id := m.nodes[curr_node_id].agent.GetInterLaneNextLane(a, m)
-		curr_lane = &m.lanes[desired_lane_id]
+		if desired_lane_id == -1 {
+			vehicle_in_inter_lane = false
+		} else {
+			curr_lane = &m.lanes[desired_lane_id]
+		}
 	}
 
 	var next_vehicle_lane *Vehicle

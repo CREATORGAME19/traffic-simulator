@@ -69,7 +69,7 @@ func (a *Vehicle) CalculateVehiclePath(mapsim *Map, start_node_id RoadNodeID) er
 			lane_id := lanes_out[l]
 			next_node_id := mapsim.lanes[lane_id].to_node
 			total_vehicle_capacity := mapsim.lanes[lane_id].distance / 3 //Estimate of vehicles
-			new_G := gScore[current] + (mapsim.lanes[lane_id].distance * (1 + (0*float64(mapsim.lanes[lane_id].vehicle_queue.usage)) / total_vehicle_capacity))
+			new_G := gScore[current] + (mapsim.lanes[lane_id].distance * (1 + (0*float64(mapsim.lanes[lane_id].vehicle_queue.usage))/total_vehicle_capacity))
 			if new_G < gScore[next_node_id] {
 				came_from[next_node_id] = &[]RoadNodeID{current}
 				gScore[next_node_id] = new_G

@@ -24,7 +24,29 @@ NODE_NAMES = {
 }
 
 ALLOWED_ROUTES = {
-    (9, 45),   # Barton Road -> Newmarket Road
+    # Huntington Road (node 1) outbound
+    (1, 42),   # → Hills Road
+    (1, 41),   # → Trumpington Road
+    (1, 55),   # → Central Cambridge Market
+    (1, 45),   # → Newmarket Road
+
+    # Madingley Road (node 7) outbound
+    (7, 42),   # → Hills Road
+    (7, 41),   # → Trumpington Road
+    (7, 55),   # → Central Cambridge Market
+    (7, 45),   # → Newmarket Road
+
+    # Barton Road (node 9) outbound
+    (9, 37),   # → Huntington Road
+    (9, 38),   # → Histon Road
+    (9, 55),   # → Central Cambridge Market
+    (9, 45),   # → Milton Road
+
+    # Milton Road (node 34) outbound
+    (34, 37),  # → Huntington Road
+    (34, 41),  # → Trumpington Road
+    (34, 55),  # → Central Cambridge Market
+    (34, 45),  # → Newmarket Road
 }
 
 def is_allowed_route(src, dest):
@@ -91,9 +113,7 @@ def collect_binned_times_per_run(log_file_path, excluded_pairs):
                         src_node = data.get("source_node_id", source_nodes.get(vid))
                         dest_node = data.get("destination_node_id", destination_nodes.get(vid))
 
-                        if not is_allowed_route(src_node, dest_node):
-                            continue
-                        if (src_node, dest_node) in excluded_pairs:
+                        if src_node != 9 or dest_node != 45:  # Barton Rd → Newmarket Rd only
                             continue
                         if spawn_time is not None and current_time is not None and src_node is not None and dest_node is not None:
                             journey_time = current_time - spawn_time
@@ -209,47 +229,81 @@ def plot_journey_times(baseline_paths, trafficlight_paths, map_file_path):
     if tl_jt:
         print(f"[Traffic Light] Total vehicles: {len(tl_jt)} | Avg: {np.mean(tl_jt)/60:.2f} min")
 
-    plt.figure(figsize=(12, 7))
+    # Window 1: Average journey times
+    fig1, ax1 = plt.subplots(figsize=(14, 7))
 
     if avg_baseline is not None:
         valid = ~np.isnan(avg_baseline)
-        plt.errorbar(
+        ax1.errorbar(
             np.where(valid)[0], avg_baseline[valid], yerr=std_baseline[valid],
-            marker='o', linestyle='-', linewidth=2, markersize=4, capsize=4,
+            marker='o', linestyle='-', linewidth=3, markersize=6, capsize=4,
             color='blue', label='Before Traffic Light Change'
         )
 
     if avg_tl is not None:
         valid = ~np.isnan(avg_tl)
-        plt.errorbar(
+        ax1.errorbar(
             np.where(valid)[0], avg_tl[valid], yerr=std_tl[valid],
-            marker='o', linestyle='-', linewidth=2, markersize=4, capsize=4,
+            marker='o', linestyle='-', linewidth=3, markersize=6, capsize=4,
             color='orange', label='After Traffic Light Change'
         )
 
-    plt.xticks(range(len(common_intervals)), x_labels, rotation=45, ha='right')
-    plt.xlabel('Simulated Time of Day', fontsize=16)
-    plt.ylabel('Average Journey Time (minutes)', fontsize=16)
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.legend(fontsize=12)
-    plt.tight_layout()
+    ax1.set_xticks(range(len(common_intervals)))
+    ax1.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
+    ax1.tick_params(axis='y', labelsize=14)
+    ax1.set_xlabel('Simulated Time of Day', fontsize=17)
+    ax1.set_ylabel('Average Journey Time (minutes)', fontsize=17)
+    ax1.set_ylim(bottom=0)
+    ax1.grid(True, linestyle='--', alpha=0.7)
+    ax1.legend(fontsize=14)
+    fig1.tight_layout()
+
+    # Window 2: Standard deviation
+    fig2, ax2 = plt.subplots(figsize=(14, 7))
+
+    if std_baseline is not None:
+        valid = ~np.isnan(std_baseline)
+        ax2.plot(
+            np.where(valid)[0], std_baseline[valid],
+            marker='s', linestyle='-', linewidth=3, markersize=6,
+            color='blue', label='Before Traffic Light Change'
+        )
+
+    if std_tl is not None:
+        valid = ~np.isnan(std_tl)
+        ax2.plot(
+            np.where(valid)[0], std_tl[valid],
+            marker='s', linestyle='-', linewidth=3, markersize=6,
+            color='orange', label='After Traffic Light Change'
+        )
+
+    ax2.set_xticks(range(len(common_intervals)))
+    ax2.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
+    ax2.tick_params(axis='y', labelsize=14)
+    ax2.set_xlabel('Simulated Time of Day', fontsize=17)
+    ax2.set_ylabel('Standard Deviation (minutes)', fontsize=17)
+    ax2.set_ylim(bottom=0)
+    ax2.grid(True, linestyle='--', alpha=0.7)
+    ax2.legend(fontsize=14)
+    fig2.tight_layout()
+
     plt.show()
 
 
 if __name__ == "__main__":
     baseline_files = [
-        '../usb_logs/RUN1.jsonl',
-        '../usb_logs/RUN2.jsonl',
-        '../usb_logs/RUN3.jsonl',
-        '../usb_logs/RUN4.jsonl',
-        '../usb_logs/RUN5.jsonl',
+        '../new_logs2/RUN1.jsonl',
+        '../new_logs2/RUN2.jsonl',
+        '../new_logs2/RUN3.jsonl',
+        '../new_logs2/RUN4.jsonl',
+        '../new_logs2/RUN5.jsonl',
     ]
     trafficlight_files = [
-        '../usb_logs/RUN1trafficlight.jsonl',
-        '../usb_logs/RUN2trafficlight.jsonl',
-        '../usb_logs/RUN3trafficlight.jsonl',
-        '../usb_logs/RUN4trafficlight.jsonl',
-        '../usb_logs/RUN5trafficlight.jsonl',
+        '../new_logs2/RUN1trafficlight.jsonl',
+        '../new_logs2/RUN2trafficlight.jsonl',
+        '../new_logs2/RUN3trafficlight.jsonl',
+        '../new_logs2/RUN4trafficlight.jsonl',
+        '../new_logs2/RUN5trafficlight.jsonl',
     ]
     map_file_name = '../example_maps/world7.json'
 

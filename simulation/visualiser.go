@@ -58,7 +58,7 @@ func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, logger 
 	vehicles_seen := 0 //Vehicles seen in the run so far
 	current_vehicle_fetch := make([]VehicleFetchResult, mapsim.config_parameters.MAX_VEHICLES)
 	current_agent_fetch := make([]StaticAgentFetchResult, len(mapsim.nodes))
-	for i := 0; i< len(mapsim.nodes); i++{
+	for i := 0; i < len(mapsim.nodes); i++ {
 		current_agent_fetch[i] = StaticAgentFetchResult{VehiclesProcessed: 0}
 	}
 
@@ -94,7 +94,7 @@ func runFrontend(channel chan SimFetchResult, simrate_chan chan float64, logger 
 			return
 		}
 		go func() { //Reader loop for controller channel
-			for data := range channel { 
+			for data := range channel {
 				if data.vehicle_fetch_result != nil {
 					vehicle_data := data.vehicle_fetch_result
 					current_vehicle_fetch[mapsim.GetMapArrayVehicleIDIndex(vehicle_data.ID)] = *vehicle_data

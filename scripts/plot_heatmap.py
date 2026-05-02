@@ -81,7 +81,7 @@ def plot_map_heatmap(log_file_paths, map_file_path):
         return
 
     min_time = min(valid_times)
-    max_time = max(valid_times)
+    max_time = 5.0  # cap gradient at 5 minutes
 
     cmap = cm.get_cmap('RdYlGn_r')
     norm = mcolors.Normalize(vmin=min_time, vmax=max_time)
@@ -167,11 +167,11 @@ def plot_map_heatmap(log_file_paths, map_file_path):
 
 if __name__ == "__main__":
     log_file_names = [
-        '../usb_logs/RUN1.jsonl',
-        '../usb_logs/RUN2.jsonl',
-        '../usb_logs/RUN3.jsonl',
-        '../usb_logs/RUN4.jsonl',
-        '../usb_logs/RUN5.jsonl'
+        '../new_logs2/RUN1.jsonl',
+        '../new_logs2/RUN2.jsonl',
+        '../new_logs2/RUN3.jsonl',
+        '../new_logs2/RUN4.jsonl',
+        '../new_logs2/RUN5.jsonl'
     ]
     map_file_name = '../example_maps/world7.json'
     
