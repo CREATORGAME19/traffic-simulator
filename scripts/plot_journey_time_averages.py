@@ -232,6 +232,11 @@ def plot_journey_times(log_file_paths, map_file_path):
         std = np.nanstd(masked, axis=0) / 60
         valid = ~np.isnan(avg)
 
+        # Show one tick every 30 minutes (every 3 × 10-min intervals)
+        tick_step = 3
+        tick_positions = list(range(0, len(common_intervals), tick_step))
+        tick_labels_sparse = [x_labels[i] for i in tick_positions]
+
         # Window 1: Aggregate Average
         fig1, ax1 = plt.subplots(figsize=(14, 7))
         ax1.plot(
@@ -239,13 +244,13 @@ def plot_journey_times(log_file_paths, map_file_path):
             marker='o', linestyle='-', linewidth=3, markersize=7,
             color='blue', label='Aggregate Average (All Routes)'
         )
-        ax1.set_ylabel('Aggregate Journey Time (minutes)', fontsize=17)
-        ax1.set_xlabel('Simulated Time of Day', fontsize=17)
+        ax1.set_ylabel('Aggregate Journey Time (minutes)', fontsize=19)
+        ax1.set_xlabel('Simulated Time of Day', fontsize=19)
         ax1.grid(True, linestyle='--', alpha=0.7)
         ax1.set_ylim(bottom=0)
-        ax1.set_xticks(range(len(common_intervals)))
-        ax1.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
-        ax1.tick_params(axis='y', labelsize=14)
+        ax1.set_xticks(tick_positions)
+        ax1.set_xticklabels(tick_labels_sparse, rotation=45, ha='right', fontsize=19)
+        ax1.tick_params(axis='y', labelsize=17)
         fig1.tight_layout()
 
         # Window 2: Aggregate Standard Deviation
@@ -255,13 +260,13 @@ def plot_journey_times(log_file_paths, map_file_path):
             marker='s', linestyle='-', linewidth=3, markersize=7,
             color='orange', label='Standard Deviation (All Routes)'
         )
-        ax2.set_xlabel('Simulated Time of Day', fontsize=17)
-        ax2.set_ylabel('Standard Deviation (minutes)', fontsize=17)
+        ax2.set_xlabel('Simulated Time of Day', fontsize=19)
+        ax2.set_ylabel('Standard Deviation (minutes)', fontsize=19)
         ax2.grid(True, linestyle='--', alpha=0.7)
         ax2.set_ylim(bottom=0)
-        ax2.set_xticks(range(len(common_intervals)))
-        ax2.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
-        ax2.tick_params(axis='y', labelsize=14)
+        ax2.set_xticks(tick_positions)
+        ax2.set_xticklabels(tick_labels_sparse, rotation=45, ha='right', fontsize=19)
+        ax2.tick_params(axis='y', labelsize=17)
         fig2.tight_layout()
 
         plt.show()

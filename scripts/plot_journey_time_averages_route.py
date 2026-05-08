@@ -248,14 +248,18 @@ def plot_journey_times(baseline_paths, trafficlight_paths, map_file_path):
             color='orange', label='After Traffic Light Change'
         )
 
-    ax1.set_xticks(range(len(common_intervals)))
-    ax1.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
-    ax1.tick_params(axis='y', labelsize=14)
-    ax1.set_xlabel('Simulated Time of Day', fontsize=17)
-    ax1.set_ylabel('Average Journey Time (minutes)', fontsize=17)
+    tick_step = 3
+    tick_positions = list(range(0, len(common_intervals), tick_step))
+    tick_labels_sparse = [x_labels[i] for i in tick_positions]
+
+    ax1.set_xticks(tick_positions)
+    ax1.set_xticklabels(tick_labels_sparse, rotation=45, ha='right', fontsize=19)
+    ax1.tick_params(axis='y', labelsize=17)
+    ax1.set_xlabel('Simulated Time of Day', fontsize=19)
+    ax1.set_ylabel('Average Journey Time (minutes)', fontsize=19)
     ax1.set_ylim(bottom=0)
     ax1.grid(True, linestyle='--', alpha=0.7)
-    ax1.legend(fontsize=14)
+    ax1.legend(fontsize=19)
     fig1.tight_layout()
 
     # Window 2: Standard deviation
@@ -277,8 +281,8 @@ def plot_journey_times(baseline_paths, trafficlight_paths, map_file_path):
             color='orange', label='After Traffic Light Change'
         )
 
-    ax2.set_xticks(range(len(common_intervals)))
-    ax2.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
+    ax2.set_xticks(tick_positions)
+    ax2.set_xticklabels(tick_labels_sparse, rotation=45, ha='right', fontsize=14)
     ax2.tick_params(axis='y', labelsize=14)
     ax2.set_xlabel('Simulated Time of Day', fontsize=17)
     ax2.set_ylabel('Standard Deviation (minutes)', fontsize=17)

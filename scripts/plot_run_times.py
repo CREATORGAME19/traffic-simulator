@@ -23,12 +23,12 @@ for i, ((label, times), color) in enumerate(zip(groups.items(), colors)):
            color=color, edgecolor='black', alpha=0.85, width=0.5, zorder=3,
            label=label)
     ax.text(i, mean_m + std_m + 0.05, f'{mean_m:.2f}',
-            ha='center', va='bottom', fontsize=13, fontweight='bold')
+            ha='center', va='bottom', fontsize=19, fontweight='bold')
 
 ax.set_xticks(np.arange(len(groups)))
-ax.set_xticklabels(list(groups.keys()), fontsize=14)
-ax.tick_params(axis='y', labelsize=14)
-ax.set_ylabel('Average Run Time (minutes)', fontsize=16)
+ax.set_xticklabels(list(groups.keys()), fontsize=19)
+ax.tick_params(axis='y', labelsize=19)
+ax.set_ylabel('Average Run Time (minutes)', fontsize=19)
 ax.set_ylim(bottom=0)
 ax.grid(axis='y', linestyle='--', alpha=0.6, zorder=0)
 plt.tight_layout()

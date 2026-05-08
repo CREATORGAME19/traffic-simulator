@@ -190,7 +190,7 @@ def plot_journey_times(baseline_paths, v2i10_paths, v2i20_paths, map_file_path):
     if not all_intervals:
         return
 
-    common_intervals = np.arange(min(all_intervals), max(all_intervals) + interval_size, interval_size)
+    common_intervals = np.arange(0, max(all_intervals) + interval_size, interval_size)
     x_labels = [seconds_to_clock(s) for s in common_intervals]
 
     avg_baseline, std_baseline = compute_aggregate_across_runs(baseline_runs, common_intervals)
@@ -220,14 +220,18 @@ def plot_journey_times(baseline_paths, v2i10_paths, v2i20_paths, map_file_path):
                 marker='o', linestyle='-', linewidth=3, markersize=6, capsize=4,
                 color=color, label=label
             )
-    ax1.set_xticks(range(len(common_intervals)))
-    ax1.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
-    ax1.tick_params(axis='y', labelsize=14)
-    ax1.set_xlabel('Simulated Time of Day', fontsize=17)
-    ax1.set_ylabel('Average Journey Time (minutes)', fontsize=17)
+    tick_step = 3
+    tick_positions = list(range(0, len(common_intervals), tick_step))
+    tick_labels_sparse = [x_labels[i] for i in tick_positions]
+
+    ax1.set_xticks(tick_positions)
+    ax1.set_xticklabels(tick_labels_sparse, rotation=45, ha='right', fontsize=19)
+    ax1.tick_params(axis='y', labelsize=19)
+    ax1.set_xlabel('Simulated Time of Day', fontsize=19)
+    ax1.set_ylabel('Average Journey Time (minutes)', fontsize=19)
     ax1.set_ylim(bottom=0)
     ax1.grid(True, linestyle='--', alpha=0.7)
-    ax1.legend(fontsize=14)
+    ax1.legend(fontsize=19)
     fig1.tight_layout()
 
     # Window 2: Standard deviation
@@ -240,14 +244,14 @@ def plot_journey_times(baseline_paths, v2i10_paths, v2i20_paths, map_file_path):
                 marker='s', linestyle='-', linewidth=3, markersize=6,
                 color=color, label=label
             )
-    ax2.set_xticks(range(len(common_intervals)))
-    ax2.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
-    ax2.tick_params(axis='y', labelsize=14)
-    ax2.set_xlabel('Simulated Time of Day', fontsize=17)
-    ax2.set_ylabel('Standard Deviation (minutes)', fontsize=17)
+    ax2.set_xticks(tick_positions)
+    ax2.set_xticklabels(tick_labels_sparse, rotation=45, ha='right', fontsize=19)
+    ax2.tick_params(axis='y', labelsize=19)
+    ax2.set_xlabel('Simulated Time of Day', fontsize=19)
+    ax2.set_ylabel('Standard Deviation (minutes)', fontsize=19)
     ax2.set_ylim(bottom=0)
     ax2.grid(True, linestyle='--', alpha=0.7)
-    ax2.legend(fontsize=14)
+    ax2.legend(fontsize=19)
     fig2.tight_layout()
 
     plt.show()

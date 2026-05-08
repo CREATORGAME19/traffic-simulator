@@ -149,8 +149,8 @@ def plot_journey_times(groups):
         zorder=3
     )
 
-    plt.xlabel('Lookahead Range (Number of Vehicles)', fontsize=14)
-    plt.ylabel('Average Journey Time (minutes)', fontsize=14)
+    plt.xlabel('Lookahead Range (Number of Vehicles)', fontsize=19)
+    plt.ylabel('Average Journey Time (minutes)', fontsize=19)
 
     plt.grid(axis='y', linestyle='--', alpha=0.7, zorder=0)
 
@@ -160,7 +160,7 @@ def plot_journey_times(groups):
         tick_positions.append(sum(coords) / len(coords))
         tick_labels.append(g_name)
 
-    plt.xticks(tick_positions, tick_labels, fontsize=12)
+    plt.xticks(tick_positions, tick_labels, fontsize=19)
 
     legend_handles = [
         mpatches.Patch(color=color_map['Baseline'], label='Baseline (0%)'),
@@ -168,7 +168,7 @@ def plot_journey_times(groups):
         mpatches.Patch(color=color_map['50%'], label='50% V2V Adoption'),
         mpatches.Patch(color=color_map['25%'], label='25% V2V Adoption')
     ]
-    plt.legend(handles=legend_handles, title="Adoption Rate", fontsize=11, title_fontsize=12, loc='lower right')
+    plt.legend(handles=legend_handles, title="Adoption Rate", fontsize=19, title_fontsize=19, loc='lower right')
 
     for bar in bars:
         yval = bar.get_height()
@@ -178,7 +178,7 @@ def plot_journey_times(groups):
             f'{yval:.1f}',
             ha='center',
             va='bottom',
-            fontsize=10,
+            fontsize=19,
             fontweight='bold'
         )
 

@@ -138,19 +138,19 @@ def plot_comparison(baseline_files, traffic_light_files):
     ax.axhline(0, color='black', linewidth=1.0)
     ax.set_ylabel('Average Journey Time Change (%)', fontsize=20)
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=17, ha='center')
-    ax.tick_params(axis='y', labelsize=17)
+    ax.set_xticklabels(labels, fontsize=23, ha='right', rotation=35)
+    ax.tick_params(axis='y', labelsize=26)
     ax.grid(True, axis='y', linestyle='--', alpha=0.6)
 
     for bar, pct in zip(bars, pct_changes):
         ypos = bar.get_height() + 0.3 if pct >= 0 else bar.get_height() - 2.0
         ax.text(bar.get_x() + bar.get_width() / 2, ypos, f'{pct:+.1f}%',
-                ha='center', va='bottom', fontsize=18, fontweight='bold')
+                ha='center', va='bottom', fontsize=19, fontweight='bold')
 
     ax.legend(handles=[
         plt.Rectangle((0, 0), 1, 1, color='green', label='Improvement (faster)'),
         plt.Rectangle((0, 0), 1, 1, color='red',   label='Degradation (slower)'),
-    ], fontsize=17)
+    ], fontsize=21)
 
     plt.tight_layout()
     plt.show()

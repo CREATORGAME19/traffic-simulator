@@ -148,8 +148,8 @@ def plot_map_heatmap(log_file_paths, map_file_path):
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, fraction=0.03, pad=0.04)
-    cbar.set_label('Average Road Traversal Time (minutes)', fontsize=16)
-    cbar.ax.tick_params(labelsize=14)
+    cbar.set_label('Average Road Traversal Time (minutes)', fontsize=19)
+    cbar.ax.tick_params(labelsize=17)
 
     legend_elements = [
         mlines.Line2D([], [], color='blue', marker='o', linestyle='None', markersize=10, label='Spawn/Sink Agent'),
@@ -157,7 +157,7 @@ def plot_map_heatmap(log_file_paths, map_file_path):
         mlines.Line2D([], [], color='black', marker='o', linestyle='None', markersize=10, label='Intersection Agent')
     ]
     ax.legend(handles=legend_elements, loc='upper right', title="Agent Types",
-              prop={'size': 14}, title_fontsize=14)
+              prop={'size': 19}, title_fontsize=19)
 
     ax.set_aspect('equal', 'box')
     ax.axis('off')  # Remove axes
