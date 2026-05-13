@@ -56,9 +56,12 @@ func (a *Vehicle) CalculateVehiclePath(mapsim *Map, start_node_id RoadNodeID) er
 	gScore[start_node_id] = 0
 
 	heap.Push(pq, &item[RoadNodeID]{value: start_node_id, priority: CalculateCostHeuristicFunction(mapsim, start_node_id, end_node_id)})
+	nodes_seen := 0
 	for pq.Len() > 0 {
+		if nodes_seen > len(mapsim.nodes) {
+			return fmt.Errorf("Error: No valid path found in vehicle sim! (Too many nodes seen)")
+		}
 		current := heap.Pop(pq).(*item[RoadNodeID]).value
-
 		if current == end_node_id {
 			a.reconstructPath(mapsim, came_from, start_node_id, end_node_id)
 			return nil
@@ -80,6 +83,7 @@ func (a *Vehicle) CalculateVehiclePath(mapsim *Map, start_node_id RoadNodeID) er
 				heap.Push(pq, &item[RoadNodeID]{value: next_node_id, priority: new_G + CalculateCostHeuristicFunction(mapsim, next_node_id, end_node_id)})
 			}
 		}
+		nodes_seen++
 	}
 	return fmt.Errorf("Error: No valid path found in vehicle sim!")
 }
