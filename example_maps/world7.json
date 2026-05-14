@@ -40,7 +40,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.015
+        "spawn_rate": 0.0185895,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -55,7 +56,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.041
+        "spawn_rate": 0.05019165,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -150,7 +152,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.025
+        "spawn_rate": 0.0297432,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -184,7 +187,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.031
+        "spawn_rate": 0.02416635,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -435,7 +439,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.027
+        "spawn_rate": 0.04275585,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -478,7 +483,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.046
+        "spawn_rate": 0.0334611,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -503,7 +509,7 @@
       "AgentProp": {
         "time_intervals": [
           30,
-          60,
+          30,
           30,
           30
         ]
@@ -658,7 +664,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.009
+        "spawn_rate": 0.0111537,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -673,7 +680,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.035
+        "spawn_rate": 0.01215,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -688,7 +696,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.043
+        "spawn_rate": 0.0520506,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -886,7 +895,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.022
+        "spawn_rate": 0.02788425,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -901,7 +911,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.007
+        "spawn_rate": 0.00929475,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
@@ -916,7 +927,8 @@
       "Lanes_In": [],
       "Agent": 1,
       "AgentProp": {
-        "spawn_rate": 0.015
+        "spawn_rate": 0.0185895,
+        "reduced_spawn_rate": 0.5
       }
     },
     {
